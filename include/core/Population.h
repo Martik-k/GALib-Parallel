@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "Individual.hpp"
+#include "Individual.h"
 #include <vector>
 #include <stdexcept>
 #include <algorithm>

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../core/Individual.hpp"
+#include "../core/Individual.h"
 
 namespace galib {
 

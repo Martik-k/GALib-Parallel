@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "../core/Individual.hpp"
-#include "../core/Population.hpp"
+#include "../core/Individual.h"
+#include "../core/Population.h"
 
 namespace galib {
 
