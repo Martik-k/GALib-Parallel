@@ -14,13 +14,16 @@ namespace galib {
     class Population {
     private:
         std::vector<Individual<GeneType>> individuals;
+        std::size_t num_genes_m;
     public:
-        explicit Population(std::size_t size, std::size_t num_genes) {
+        explicit Population(std::size_t size, std::size_t num_genes) : num_genes_m(num_genes) {
             if (size == 0) throw std::invalid_argument("Population size cannot be zero");
             individuals.assign(size, Individual<GeneType>(num_genes));
         }
 
         std::size_t size() const { return individuals.size(); }
+        bool empty() const { return individuals.empty(); }
+        std::size_t getNumGenes() const { return num_genes_m; }
 
         Individual<GeneType>& operator [](std::size_t index) { return individuals[index]; }
         const Individual<GeneType>& operator [](std::size_t index) const { return individuals[index]; }

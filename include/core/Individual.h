@@ -19,6 +19,8 @@ namespace galib {
         explicit Individual(std::size_t num_genes)
             : genotype(num_genes), fitness(std::numeric_limits<double>::max()) {}
 
+        std::size_t size() const { return genotype.size(); }
+
         std::vector<GeneType>& getGenotype() { return genotype; }
         const std::vector<GeneType>& getGenotype() const { return genotype; }
         void setGenotype(const std::vector<GeneType>& new_genotype) { genotype = new_genotype; }
