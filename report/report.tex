@@ -1,0 +1,118 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+
+    \title{Developing a Parallelized Genetic Algorithm Library using OpenMP, MPI, and CUDA\\
+    }
+
+    \author{
+        \IEEEauthorblockN{Solomiia Gadiichuk}
+        \IEEEauthorblockA{\textit{Faculty of Applied Sciences} \\
+        Ukrainian Catholic University\\
+        Lviv, Ukraine \\
+        hadiichuk.pn@ucu.edu.ua}
+        \and
+        \IEEEauthorblockN{Bohdan Zasymovych}
+        \IEEEauthorblockA{\textit{Faculty of Applied Sciences} \\
+        Ukrainian Catholic University\\
+        Lviv, Ukraine\\
+        zasymovych.pn@ucu.edu.ua}
+        \and
+        \IEEEauthorblockN{Marta Kosiv}
+        \IEEEauthorblockA{\textit{Faculty of Applied Sciences} \\
+        Ukrainian Catholic University\\
+        Lviv, Ukraine\\
+        kosiv.pn@ucu.edu.ua}
+        \and
+        \IEEEauthorblockN{...}
+        \IEEEauthorblockA{\textit{Faculty of Applied Sciences} \\
+        Ukrainian Catholic University\\
+        Lviv, Ukraine\\
+        ...}
+    }
+
+    \maketitle
+
+\begin{abstract}
+        While Genetic Algorithms (GAs) are powerful optimization tools, their high computational cost limits scalability. This paper details the development of a genetic algorithm library that includes four parallelization strategies across shared-memory, distributed, and accelerator-based architectures to solve this problem. We describe a basic multi-threaded Generational GA and outline future library additions: a CUDA-accelerated GA, an MPI-based Island Model, an OpenMP Cellular GA, and a hybrid OpenMP/AVX Differential Evolution algorithm. The performance of this library will be tested using 3D mathematical surfaces and high-dimensional polygon image approximation tasks.
+    \end{abstract}
+
+    \begin{IEEEkeywords}
+        Genetic Algorithms, Parallel Computing, Software Library, OpenMP, MPI, CUDA, Optimization
+    \end{IEEEkeywords}
+
+    \section{Introduction}
+    Evolutionary algorithms are useful for solving complex optimization problems where traditional methods fail or take too much time. However, evaluating fitness functions for large populations over many generations requires a lot of computing power. 
+
+    To solve this, different parallelization methods can be used, depending on the hardware and the specific algorithm. This project aims to develop a fast library that includes four different algorithms: a classic Generational GA, an Island Model GA, a Cellular GA, and Differential Evolution (DE). Using tools like OpenMP, OpenMPI, oneAPI/oneTBB, and CUDA, we will adapt these algorithms to the best hardware options (shared memory, distributed memory, and GPUs). 
+
+    This paper presents the current progress of the library. It details a basic multi-threaded generational algorithm and outlines the theory and plans for future parallel models.
+
+    \section{Background and Preliminaries}
+
+    Genetic algorithms (GAs) are search and optimization methods inspired by natural evolution. Unlike standard algorithms that often get trapped in a local optimum, GAs use probability to explore large search spaces by evolving a population of possible solutions over several generations. This allows them to effectively escape local traps and find the true global maximum (or minimum) of a problem.
+
+    \subsection{Representation and Fitness}
+    Every possible solution in a GA is represented as a sequence of parameters called a \textit{chromosome} or \textit{genotype}. How this solution actually looks or works in the problem is the \textit{phenotype}. Each solution is evaluated using a \textit{fitness function}, $F(x)$, which gives a score based on how well it solves the problem. The main goal of the algorithm is to find a genotype with the highest (or lowest) fitness score.
+
+    \subsection{Evolutionary Operators}
+    Moving from one generation to the next uses three main steps:
+    \begin{itemize}
+        \item \textbf{Selection:} This step favors individuals with better fitness scores, giving them a higher chance to pass their genes to the next generation.
+        \item \textbf{Crossover:} Selected pairs exchange parts of their chromosomes to create offspring. This combines the best traits from different parents.
+        \item \textbf{Mutation:} To keep the population diverse and avoid getting stuck in local minimums, random changes are made to genes with a low probability.
+    \end{itemize}
+
+    \subsection{Schema Theory and Premature Convergence}
+    GAs work by spreading short, successful gene patterns called \textit{schemas}. Over time, the algorithm combines these blocks to find the best solutions. However, a common problem in basic GAs is \textit{premature convergence}, where the population becomes too similar too fast and stops at a bad local solution. Methods like fitness scaling and different selection rules are used to control this and keep the population diverse.
+
+    \section{Implemented Methodology}
+    
+    \subsection{Generational GA with Baseline Thread Parallelization}
+
+    \section{Future Algorithmic Implementations}
+
+    To build a complete parallelization toolkit, four advanced algorithms will be added to the library.
+
+    \subsection{Generational GA with CUDA Acceleration}
+
+    \subsection{Island Model GA with MPI}
+        For cluster computers with distributed memory, the library will include an Island Model GA. Here, the main population is divided into isolated groups, or ``islands,'' that evolve on their own in separate processes. 
+
+        To stop these isolated groups from getting stuck in local minimums, a migration step is added. Every $N$ generations, islands exchange some of their best individuals depending on the network setup (like a ring or fully connected graph). The library will use the Message Passing Interface (MPI) to handle this communication between computers.
+
+    \subsection{Cellular GA with OpenMP}
+
+    \subsection{Differential Evolution with Hybrid OpenMP/AVX}
+
+    \section{Benchmark Problems and Demonstrations}
+
+    \subsection{3D Benchmark Surface (Swarm Convergence)}
+
+    \subsection{Polygon Image Approximation}
+
+    \section{Experimental Setup}
+    % This section will detail the hardware specifications, cluster configurations, compiler versions, and specific GA parameters (population size, mutation rates, epoch lengths) used during testing.
+    
+    \section{Results and Discussion}
+    % This section will present performance metrics, execution times, speedup graphs (Amdahl's Law analysis), and convergence rate comparisons to demonstrate the library's efficiency.
+
+    \section{Conclusion}
+    % This section will summarize the library's development progress, highlighting the capabilities of the implemented parallelization strategies across specific hardware constraints.
+
+    \section*{Acknowledgment}
+
+    \begin{thebibliography}{00}
+        \bibitem{b1} % Add standard GA and Parallel computing references here later.
+    \end{thebibliography}
+
+\end{document}

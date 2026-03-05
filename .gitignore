@@ -30,3 +30,31 @@ venv/
 env/
 myenv/
 myvenv/
+
+
+##### LaTeX #####
+## Core LaTeX auxiliary files
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.synctex.gz
+*.toc
+*.out
+
+## Bibliography files
+*.bbl
+*.blg
+
+## Indexing files
+*.idx
+*.ilg
+*.ind
+
+## List of figures/tables
+*.lof
+*.lot
+
+## Modern LaTeX (biblatex)
+*.bcf
+*.run.xml
