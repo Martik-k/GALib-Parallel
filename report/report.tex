@@ -7,6 +7,7 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{hyperref}
+\usepackage{fontawesome5}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
 T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
@@ -46,22 +47,22 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \end{abstract}
 
     \begin{IEEEkeywords}
-        Genetic Algorithms, Parallel Computing, Software Library, OpenMP, MPI, CUDA, Optimization
+        Genetic Algorithms, Parallel Computing, Software Library, OpenMP, MPI, AVX, CUDA, Optimization
     \end{IEEEkeywords}
 
     \section{Introduction}
     Evolutionary algorithms are useful for solving complex optimization problems where traditional methods fail or take too much time. However, evaluating fitness functions for large populations over many generations requires a lot of computing power. 
 
-    To solve this, different parallelization methods can be used, depending on the hardware and the specific algorithm. This project aims to develop a fast library that includes four different algorithms: a classic Generational GA, an Island Model GA, a Cellular GA, and Differential Evolution (DE). Using tools like OpenMP, OpenMPI, oneAPI/oneTBB, and CUDA, we will adapt these algorithms to the best hardware options (shared memory, distributed memory, and GPUs). 
+    To solve this, different parallelization methods can be used, depending on the hardware and the specific algorithm. This project aims to develop a fast C++ library that includes four different algorithms: a classic Generational GA, an Island Model GA, a Cellular GA, and Differential Evolution (DE). Using tools like OpenMP, OpenMPI, oneAPI/oneTBB, and CUDA, we will adapt these algorithms to the best hardware options (shared memory, distributed memory, and GPUs). 
 
-    This paper presents the current progress of the library. It details a basic multi-threaded generational algorithm and outlines the theory and plans for future parallel models.
+    This paper presents the current progress of the library. It details a basic multi-threaded generational algorithm and outlines the theory and plans for future parallel models. The source code is publicly available at \faGithub\ \href{https://github.com/Martik-k/GALib-Parallel}{our GitHub}.
 
     \section{Background and Preliminaries}
 
     Genetic algorithms (GAs) are search and optimization methods inspired by natural evolution. Unlike standard algorithms that often get trapped in a local optimum, GAs use probability to explore large search spaces by evolving a population of possible solutions over several generations. This allows them to effectively escape local traps and find the true global maximum (or minimum) of a problem.
 
     \subsection{Representation and Fitness}
-    Every possible solution in a GA is represented as a sequence of parameters called a or \textit{genotype}. How this solution actually looks or works in the problem is the \textit{phenotype}. Each solution is evaluated using a \textit{fitness function}, $F(x)$, which gives a score based on how well it solves the problem. The main goal of the algorithm is to find a genotype with the highest (or lowest) fitness score.
+    Every possible solution in a GA is represented as a sequence of parameters called a \textit{genotype}. How this solution actually looks or works in the problem is the \textit{phenotype}. Each solution is evaluated using a \textit{fitness function}, $F(x)$, which gives a score based on how well it solves the problem. The main goal of the algorithm is to find a genotype with the highest (or lowest) fitness score.
 
     \subsection{Evolutionary Operators}
     Moving from one generation to the next uses three main steps \cite{b1}:
@@ -72,7 +73,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \end{itemize}
 
     \subsection{Schema Theory and Premature Convergence}
-        The mathematical foundation of Genetic Algorithms is based on \textit{schemas}---templates that describe a subset of chromosomes sharing specific genes. 
+        The mathematical foundation of Genetic Algorithms is based on \textit{schemas}---templates that describe a subset of chromosomes sharing specific genes \cite{b2, b3}.
 
         \begin{itemize}
             \item \textbf{Binary Case:} A schema uses ones, zeros, and a "don't care" symbol ($*$). For example, the schema \texttt{1*0} matches both \texttt{110} and \texttt{100}.
@@ -119,7 +120,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
     \section{Benchmark Problems and Demonstrations}
 
-    \subsection{Visulization}
+    \section{Visulization}
 
     \section{Experimental Setup}
     % This section will detail the hardware specifications, cluster configurations, compiler versions, and specific GA parameters (population size, mutation rates, epoch lengths) used during testing.
@@ -136,5 +137,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
         \bibitem{b1} ``Real-Coded Genetic Algorithm,'' \textit{Algorithm Afternoon}, [Online]. Available: \url{https://algorithmafternoon.com/genetic/real_coded_genetic_algorithm/}. [Accessed: Mar. 5, 2026].
         
         \bibitem{b2} O. Farenyuk, ``Genetic Algorithms'' unpublished lecture notes.
+
+        \bibitem{b3} ``Holland's schema theorem,'' \textit{Wikipedia}, [Online]. Available: \url{https://en.wikipedia.org/wiki/Holland%27s_schema_theorem}. [Accessed: Mar. 5, 2026].
     \end{thebibliography}
 \end{document}
