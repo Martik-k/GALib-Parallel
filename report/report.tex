@@ -1,18 +1,17 @@
 \documentclass[conference]{IEEEtran}
 \IEEEoverridecommandlockouts
-% The preceding line is only needed to identify funding in the first footnote. If that is unneeded, please comment it out.
 \usepackage{cite}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
 \usepackage{textcomp}
 \usepackage{xcolor}
+\usepackage{hyperref}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
 T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
 
-    \title{Developing a Parallelized Genetic Algorithm Library using OpenMP, MPI, and CUDA\\
-    }
+    \title{Developing a Parallelized Genetic Algorithm Library using OpenMP, MPI, and CUDA\\}
 
     \author{
         \IEEEauthorblockN{Solomiia Gadiichuk}
@@ -42,7 +41,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
     \maketitle
 
-\begin{abstract}
+    \begin{abstract}
         While Genetic Algorithms (GAs) are powerful optimization tools, their high computational cost limits scalability. This paper details the development of a genetic algorithm library that includes four parallelization strategies across shared-memory, distributed, and accelerator-based architectures to solve this problem. We describe a basic multi-threaded Generational GA and outline future library additions: a CUDA-accelerated GA, an MPI-based Island Model, an OpenMP Cellular GA, and a hybrid OpenMP/AVX Differential Evolution algorithm. The performance of this library will be tested using 3D mathematical surfaces and high-dimensional polygon image approximation tasks.
     \end{abstract}
 
@@ -62,18 +61,42 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     Genetic algorithms (GAs) are search and optimization methods inspired by natural evolution. Unlike standard algorithms that often get trapped in a local optimum, GAs use probability to explore large search spaces by evolving a population of possible solutions over several generations. This allows them to effectively escape local traps and find the true global maximum (or minimum) of a problem.
 
     \subsection{Representation and Fitness}
-    Every possible solution in a GA is represented as a sequence of parameters called a \textit{chromosome} or \textit{genotype}. How this solution actually looks or works in the problem is the \textit{phenotype}. Each solution is evaluated using a \textit{fitness function}, $F(x)$, which gives a score based on how well it solves the problem. The main goal of the algorithm is to find a genotype with the highest (or lowest) fitness score.
+    Every possible solution in a GA is represented as a sequence of parameters called a or \textit{genotype}. How this solution actually looks or works in the problem is the \textit{phenotype}. Each solution is evaluated using a \textit{fitness function}, $F(x)$, which gives a score based on how well it solves the problem. The main goal of the algorithm is to find a genotype with the highest (or lowest) fitness score.
 
     \subsection{Evolutionary Operators}
-    Moving from one generation to the next uses three main steps:
+    Moving from one generation to the next uses three main steps \cite{b1}:
     \begin{itemize}
-        \item \textbf{Selection:} This step favors individuals with better fitness scores, giving them a higher chance to pass their genes to the next generation.
-        \item \textbf{Crossover:} Selected pairs exchange parts of their chromosomes to create offspring. This combines the best traits from different parents.
-        \item \textbf{Mutation:} To keep the population diverse and avoid getting stuck in local minimums, random changes are made to genes with a low probability.
+        \item \textbf{Selection:} The selection process determines which individuals from the current population will be chosen as parents to create the next generation.
+        \item \textbf{Crossover:} Selected pairs exchange parts of their genome to create offspring. This combines the best traits from different parents.
+        \item \textbf{Mutation:} It introduces random changes to the genetic material of the offspring solutions, helping to maintain diversity in the population and explore new regions of the search space.
     \end{itemize}
 
     \subsection{Schema Theory and Premature Convergence}
-    GAs work by spreading short, successful gene patterns called \textit{schemas}. Over time, the algorithm combines these blocks to find the best solutions. However, a common problem in basic GAs is \textit{premature convergence}, where the population becomes too similar too fast and stops at a bad local solution. Methods like fitness scaling and different selection rules are used to control this and keep the population diverse.
+        The mathematical foundation of Genetic Algorithms is based on \textit{schemas}---templates that describe a subset of chromosomes sharing specific genes. 
+
+        \begin{itemize}
+            \item \textbf{Binary Case:} A schema uses ones, zeros, and a "don't care" symbol ($*$). For example, the schema \texttt{1*0} matches both \texttt{110} and \texttt{100}.
+            \item \textbf{Real-Valued Case:} In our implementation, because single-point crossover preserves exact numbers without blending them, floating-point values act as discrete symbols. Therefore, an exact numerical schema like $[1.52, *, 3.14]$ is valid and functions as a stable building block.
+        \end{itemize}
+
+        The growth of these schemas is described by Holland's Schema Theorem:
+        \begin{equation}
+            m(H, t+1) \ge m(H, t) \cdot \frac{f(H)}{\bar{f}} \left[ 1 - p_c \frac{\delta(H)}{L-1} - o(H)p_m \right]
+        \end{equation}
+
+        The components of this formula are defined as follows:
+        \begin{itemize}
+            \item $m(H, t)$: The number of instances of schema $H$ at generation $t$.
+            \item $f(H)$: The average fitness of the schema $H$.
+            \item $\bar{f}$: The average fitness of the entire population.
+            \item $p_c$: The probability of crossover.
+            \item $p_m$: The probability of mutation.
+            \item $\delta(H)$: The defining length (the distance between the first and last fixed gene).
+            \item $o(H)$: The order (the total number of fixed genes).
+            \item $L$: The total length of the chromosome.
+        \end{itemize}
+
+    This theorem mathematically proves that schemas which are short (fixed genes are close together), low-order (few fixed genes), and possess above-average fitness will grow exponentially in the population over successive generations. By combining these highly fit building blocks, the algorithm efficiently avoids local traps and converges toward the global maximum.
 
     \section{Implemented Methodology}
     
@@ -96,9 +119,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
     \section{Benchmark Problems and Demonstrations}
 
-    \subsection{3D Benchmark Surface (Swarm Convergence)}
-
-    \subsection{Polygon Image Approximation}
+    \subsection{Visulization}
 
     \section{Experimental Setup}
     % This section will detail the hardware specifications, cluster configurations, compiler versions, and specific GA parameters (population size, mutation rates, epoch lengths) used during testing.
@@ -112,7 +133,8 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \section*{Acknowledgment}
 
     \begin{thebibliography}{00}
-        \bibitem{b1} % Add standard GA and Parallel computing references here later.
+        \bibitem{b1} ``Real-Coded Genetic Algorithm,'' \textit{Algorithm Afternoon}, [Online]. Available: \url{https://algorithmafternoon.com/genetic/real_coded_genetic_algorithm/}. [Accessed: Mar. 5, 2026].
+        
+        \bibitem{b2} O. Farenyuk, ``Genetic Algorithms'' unpublished lecture notes.
     \end{thebibliography}
-
 \end{document}
