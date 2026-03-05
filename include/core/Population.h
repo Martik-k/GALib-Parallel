@@ -7,6 +7,8 @@
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
+#include <random>
+#include <omp.h>
 
 namespace galib {
 
@@ -20,6 +22,22 @@ namespace galib {
             if (size == 0) throw std::invalid_argument("Population size cannot be zero");
             individuals.assign(size, Individual<GeneType>(num_genes));
         }
+
+		void initialize(GeneType lower, GeneType upper) {
+			#pragma omp parallel
+			{
+				std::random_device rd;
+                std::mt19937 rng(rd());
+                std::uniform_real_distribution<GeneType> distribution(lower, upper);
+
+                #pragma omp for schedule(static)
+                for (int i = 0; i < static_cast<int>(individuals.size()); ++i) {
+                    for (auto& gene : individuals[i].getGenotype()) {
+                        gene = distribution(rng);
+                    }
+                }
+			}
+		}
 
         std::size_t size() const { return individuals.size(); }
         bool empty() const { return individuals.empty(); }

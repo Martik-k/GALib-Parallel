@@ -1,8 +1,12 @@
 #ifndef GAUSSIAN_MUTATION_H
 #define GAUSSIAN_MUTATION_H
 
+#pragma once
+
 #include "Mutation.h"
 #include <random>
+#include <vector>
+#include <cstddef>
 
 namespace galib {
 
@@ -10,22 +14,22 @@ namespace galib {
     class GaussianMutation : public Mutation<GeneType> {
     private:
         double sigma_m;
-        std::random_device rd_m;
-        std::mt19937 gen_m;
     public:
-        explicit GaussianMutation(double sigma = 0.1)
-            : sigma_m(sigma), rd_m(), gen_m(rd_m()) {}
+        explicit GaussianMutation(double sigma)
+            : sigma_m(sigma) {}
         void mutate(Individual<GeneType>& individual, double mutation_rate) override {
             if (mutation_rate <= 0.0) { return; }
 
+			thread_local static std::random_device rd;
+            thread_local static std::mt19937 gen(rd());
+            thread_local static std::uniform_real_distribution<double> distribution(0.0, 1.0);
+			thread_local static std::normal_distribution<double> gaussian_distribution;
+
             std::vector<GeneType>& genotype = individual.getGenotype();
 
-            std::uniform_real_distribution<double> distribution(0.0, 1.0);
-            std::normal_distribution<double> gaussian_distribution(0.0, sigma_m);
-
             for (std::size_t i = 0; i < genotype.size(); ++i) {
-                if (distribution(gen_m) < mutation_rate) {
-                    genotype[i] += gaussian_distribution(gen_m);
+                if (distribution(gen) < mutation_rate) {
+                    genotype[i] += gaussian_distribution(gen, std::normal_distribution<double>::param_type(0.0, sigma_m));
                 }
             }
         }

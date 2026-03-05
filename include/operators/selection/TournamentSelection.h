@@ -6,34 +6,36 @@
 #include "Selection.h"
 #include <random>
 #include <algorithm>
+#include <stdexcept>
+#include <cstddef>
 
 namespace galib {
 
     template <typename GeneType>
     class TournamentSelection : public Selection<GeneType> {
     private:
-        size_t tournament_size_m;
-        std::random_device rd_m;
-        std::mt19937 gen_m;
+        std::size_t tournament_size_m;
     public:
-        explicit TournamentSelection(size_t tournament_size = 3) :
-            tournament_size_m(tournament_size), rd_m(), gen_m(rd_m()) {}
-        const Individual<GeneType>& select(const Population<GeneType>& population) override {
-
+        explicit TournamentSelection(size_t tournament_size) : tournament_size_m(tournament_size) {
             if (tournament_size_m == 0) {
                 throw std::invalid_argument("Tournament size must be at least 1.");
             }
+        }
+
+        const Individual<GeneType>& select(const Population<GeneType>& population) override {
+
+            thread_local static std::random_device rd;
+            thread_local static std::mt19937 gen(rd());
 
             std::size_t pop_size = population.size();
-
             std::uniform_int_distribution<std::size_t> distribution(0, pop_size - 1);
 
-            const Individual<GeneType>* winner = nullptr;
+            const Individual<GeneType>* winner = &population[distribution(gen)];
 
-            for (std::size_t i = 0; i < tournament_size_m; ++i) {
-                const Individual<GeneType>& candidate = population[distribution(gen_m)];
+            for (std::size_t i = 1; i < tournament_size_m; ++i) {
+                const Individual<GeneType>& candidate = population[distribution(gen)];
 
-                if (winner == nullptr || candidate.getFitness() < winner->getFitness()) {
+                if (candidate.getFitness() < winner->getFitness()) {
                     winner = &candidate;
                 }
             }
