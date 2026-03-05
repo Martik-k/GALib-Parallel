@@ -90,7 +90,10 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
         To stop these isolated groups from getting stuck in local minimums, a migration step is added. Every $N$ generations, islands exchange some of their best individuals depending on the network setup (like a ring or fully connected graph). The library will use the Message Passing Interface (MPI) to handle this communication between computers.
 
-    \subsection{Cellular GA with OpenMP}
+    \subsection{Cellular GA}
+        In this model, the population is organized as a two-dimensional grid where each cell represents an individual solution. Instead of interacting with the entire population, individuals interact only with their local neighbors defined by the Von Neumann neighborhood (up, down, left, and right). This spatial structure helps maintain diversity in the population and reduces the risk of premature convergence.
+        
+        Since the population is arranged as a grid, different cells can be processed independently. This structure makes the algorithm suitable for parallel processing where multiple cells of the population can be evaluated and evolved simultaneously.
 
     \subsection{Differential Evolution with Hybrid OpenMP/AVX}
 
