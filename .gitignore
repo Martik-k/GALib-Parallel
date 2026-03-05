@@ -46,6 +46,7 @@ visualizations/
 *.synctex.gz
 *.toc
 *.out
+*.pdf
 
 ## Bibliography files
 *.bbl
