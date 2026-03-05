@@ -9,7 +9,7 @@
  * x = (0, 0, ..., 0), where f(x) = 0.
  * Local Minimum: It is highly multi-modal. Due to the cosine component, local
  * minima are located roughly at all points where each coordinate is an integer
- * (e.g., x_i ≈ ±1, ±2, ±3, ...), creating a "egg-carton" surface.
+ * (e.g., x_i ≈ ±1, ±2, ±3, ...).
  * Search Space: Usually evaluated on the hypercube x_i ∈ [-5.12, 5.12].
  */
 
@@ -17,6 +17,7 @@
 #include <vector>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 
 namespace galib {
     namespace benchmark {
@@ -24,19 +25,20 @@ namespace galib {
         class RastriginFunction : public FitnessFunction<GeneType> {
         private:
             std::size_t dimensions_m;
-            double A_m;
+			GeneType lower_bound_m;
+			GeneType upper_bound_m;
+            static constexpr double A = 10.0;
 
         public:
-            explicit RastriginFunction(std::size_t dimensions = 3, double A = 10.0)
-                : dimensions_m(dimensions), A_m(A) {}
+            explicit RastriginFunction(std::size_t dimensions, GeneType lower_bound, GeneType upper_bound)
+                : dimensions_m(dimensions), lower_bound_m(lower_bound), upper_bound_m(upper_bound) {}
 
             double evaluate(const std::vector<GeneType>& genotype) const override {
-                const double PI = 3.14159265358979323846;
-                double sum = A_m * dimensions_m;
+                double sum = A * dimensions_m;
 
                 for (GeneType gene : genotype) {
                     double x = static_cast<double>(gene);
-                    sum += (x * x - A_m * std::cos(2.0 * PI * x));
+                    sum += (x * x - A * std::cos(2.0 * std::numbers::pi * x));
                 }
 
                 return sum;
@@ -47,11 +49,11 @@ namespace galib {
             }
 
             GeneType getLowerBound(std::size_t) const override {
-                return static_cast<GeneType>(-5.12);
+                return lower_bound_m;
             }
 
             GeneType getUpperBound(std::size_t) const override {
-                return static_cast<GeneType>(5.12);
+                return upper_bound_m;
             }
         };
 

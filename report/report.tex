@@ -102,6 +102,18 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \section{Implemented Methodology}
     
     \subsection{Generational GA with Baseline Thread Parallelization}
+    First, we implemented a basic Real-Coded Genetic Algorithm (RCGA). It uses continuous variables (double type) to find the minimum of mathematical functions. 
+
+    The whole algorithm is written using C++ templates. This is very useful because it makes the library flexible and easy to reuse. We can easily apply different data types or new fitness functions without changing the main code.
+
+    The algorithm uses the following main operations:
+    \begin{itemize}
+        \item \textbf{Initialization:} We create the first population randomly. We use local random number generators for each thread. This makes the code thread-safe and prevents race conditions.
+        \item \textbf{Evaluation:} We calculate the fitness score for all individuals. This takes a lot of time, so we use OpenMP (\texttt{\#pragma omp parallel for}) to run it on multiple processor cores at the same time.
+        \item \textbf{Selection:} We choose Tournament Selection. It is very fast because we do not need to sort the whole population. It is also easy to run in parallel.
+        \item \textbf{Crossover:} We use Single-Point Crossover. It is simple and fast for the computer memory. It also keeps the exact good coordinates from the parents.
+        \item \textbf{Mutation:} We use Gaussian Mutation. It adds a small random number to the genes. This helps the algorithm make small steps to find the exact minimum, and sometimes big jumps to escape bad local zones.
+    \end{itemize}
 
     \section{Future Algorithmic Implementations}
 
@@ -114,9 +126,14 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
         To stop these isolated groups from getting stuck in local minimums, a migration step is added. Every $N$ generations, islands exchange some of their best individuals depending on the network setup (like a ring or fully connected graph). The library will use the Message Passing Interface (MPI) to handle this communication between computers.
 
-    \subsection{Cellular GA with OpenMP}
+    \subsection{Cellular GA}
+        In this model, the population is organized as a two-dimensional grid where each cell represents an individual solution. Instead of interacting with the entire population, individuals interact only with their local neighbors defined by the Von Neumann neighborhood (up, down, left, and right). This spatial structure helps maintain diversity in the population and reduces the risk of premature convergence.
+        
+        Since the population is arranged as a grid, different cells can be processed independently. This structure makes the algorithm suitable for parallel processing where multiple cells of the population can be evaluated and evolved simultaneously.
 
     \subsection{Differential Evolution with Hybrid OpenMP/AVX}
+
+    We plan to implement Differential Evolution (DE) for faster optimization of continuous variables. Unlike basic mutation, DE creates new solutions by calculating the mathematical difference between existing individuals in the population. This helps the algorithm adapt its search direction and converge much faster.
 
     \section{Benchmark Problems and Demonstrations}
 

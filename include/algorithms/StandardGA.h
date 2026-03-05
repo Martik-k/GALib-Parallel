@@ -3,16 +3,18 @@
 
 #pragma once
 
-#include "../core/Population.h"
-#include "../core/FitnessFunction.h"
-#include "../operators/selection/Selection.h"
-#include "../operators/mutation/Mutation.h"
-#include "../operators/crossover/Crossover.h"
+#include "core/Population.h"
+#include "core/FitnessFunction.h"
+#include "operators/selection/Selection.h"
+#include "operators/mutation/Mutation.h"
+#include "operators/crossover/Crossover.h"
 
 #include <iostream>
 #include <random>
 #include <utility>
 #include <fstream>
+#include <omp.h>
+#include <filesystem>
 
 namespace galib {
 
@@ -29,16 +31,12 @@ namespace galib {
         std::size_t max_generations_m;
         bool use_elitism_m;
 
-        std::random_device rd_m;
-        std::mt19937_64 gen_m;
-        std::uniform_real_distribution<double> distribution_m;
-
         std::string log_file_m = "";
 
         void evaluatePopulation(Population<GeneType>& population) {
             int population_size = static_cast<int>(population.size());
 
-        #pragma omp parallel for schedule(dynamic)
+        	#pragma omp parallel for schedule(dynamic)
             for (int i = 0; i < population_size; ++i) {
                 double score = fitness_function_m.evaluate(population[i].getGenotype());
                 population[i].setFitness(score);
@@ -51,21 +49,31 @@ namespace galib {
             Selection<GeneType>& sel,
             Mutation<GeneType>& mu,
             Crossover<GeneType>& cs,
-            double m_rate = 0.1,
-            double c_rate = 0.9,
-            std::size_t max_gen = 100,
+            double m_rate,
+            double c_rate,
+            std::size_t max_gen,
             bool elitism = true
         ) : fitness_function_m(ff), selection_m(sel), mutation_m(mu), crossover_m(cs),
             mutation_rate_m(m_rate), crossover_rate_m(c_rate), max_generations_m(max_gen),
-            use_elitism_m(elitism), rd_m(), gen_m(rd_m()), distribution_m(0.0, 1.0) {}
+            use_elitism_m(elitism) {}
 
         void enableLogging(const std::string& filename) { log_file_m = filename; }
 
         void run(Population<GeneType>& population) {
-            std::ofstream log;
+			std::ofstream log;
             if (!log_file_m.empty()) {
+                std::filesystem::path p(log_file_m);
+
+                if (p.has_parent_path()) {
+                    std::filesystem::create_directories(p.parent_path());
+                }
                 log.open(log_file_m);
-                log << "generation,individual_idx,x,y\n";
+
+                if (!log.is_open()) {
+                    std::cerr << "Error: Could not open log file " << log_file_m << std::endl;
+                } else {
+                    log << "generation,individual_idx,x,y\n";
+                }
             }
 
             if (population.empty()) { return; }
@@ -73,52 +81,60 @@ namespace galib {
             std::size_t population_size = population.size();
             std::size_t num_genes = population.getNumGenes();
 
+			Population<GeneType> new_population(population_size, num_genes);
+
             evaluatePopulation(population);
 
             for (std::size_t generation_idx = 0; generation_idx < max_generations_m; ++generation_idx) {
 
                 if (log.is_open()) {
-                    for (std::size_t i = 0; i < population.size(); ++i) {
-                        log << generation_idx << "," << i << ","
-                            << population[i].getGenotype()[0] << ","
-                            << population[i].getGenotype()[1] << "\n";
-                    }
-                }
+    				for (std::size_t i = 0; i < population.size(); ++i) {
+        				log << generation_idx << "," << i << ","
+            				<< population[i].getGenotype()[0] << ","
+            				<< population[i].getGenotype()[1] << "\n";
+    				}
+				}
 
-                Population<GeneType> new_population(population_size, num_genes);
-                std::size_t population_idx = 0;
+				std::size_t elitism_offset = 0;
 
                 if (use_elitism_m) {
                     new_population[0] = population.getBestIndividual();
-                    population_idx = 1;
+                    elitism_offset = 1;
                 }
 
-                while (population_idx < population_size) {
+                #pragma omp parallel for schedule(static)
+                for (std::size_t i = elitism_offset; i < population_size; i += 2) {
+					thread_local static std::random_device tl_rd;
+                    thread_local static std::mt19937_64 tl_gen(tl_rd());
+                    thread_local static std::uniform_real_distribution<double> tl_dist(0.0, 1.0);
+
                     const Individual<GeneType>& parent1 = selection_m.select(population);
                     const Individual<GeneType>& parent2 = selection_m.select(population);
 
-                    Individual<GeneType> child1 = parent1;
-                    Individual<GeneType> child2 = parent2;
-
-                    if (distribution_m(gen_m) < crossover_rate_m) {
+                    if (tl_dist(tl_gen) < crossover_rate_m) {
                         auto children = crossover_m.crossover(parent1, parent2);
-                        child1 = children.first;
-                        child2 = children.second;
+                        new_population[i] = std::move(children.first);
+                        if (i + 1 < population_size) {
+                            new_population[i + 1] = std::move(children.second);
+                        }
+                    } else {
+                        new_population[i] = parent1;
+                        if (i + 1 < population_size) {
+                            new_population[i + 1] = parent2;
+                        }
                     }
 
-                    mutation_m.mutate(child1, mutation_rate_m);
-                    mutation_m.mutate(child2, mutation_rate_m);
-
-                    new_population[population_idx++] = child1;
-                    if (population_idx < population_size) {
-                        new_population[population_idx++] = child2;
+					mutation_m.mutate(new_population[i], mutation_rate_m);
+                    if (i + 1 < population_size) {
+                        mutation_m.mutate(new_population[i + 1], mutation_rate_m);
                     }
                 }
 
-                population = std::move(new_population);
+				std::swap(population, new_population);
+
                 evaluatePopulation(population);
 
-                if ((generation_idx + 1) % 10 == 0 || generation_idx == 0) {
+                if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
                     std::cout << "Generation " << (generation_idx + 1)
                               << " | Best Fitness: " << population.getBestIndividual().getFitness()
                               << std::endl;

@@ -8,7 +8,7 @@
  * - Global Minimum: It has a single global minimum at the origin
  * x = (0, 0, ..., 0), where f(x) = 0.
  * - Local Minimum: There are NO local minimum other than the global one.
- * - Shape: Geometrically, it represents an n-dimensional paraboloid (a "bowl" shape).
+ * - Shape: Geometrically, it represents an n-dimensional paraboloid.
  */
 
 #include "core/FitnessFunction.h"
@@ -23,7 +23,7 @@ namespace galib {
             GeneType lower_bound;
             GeneType upper_bound;
         public:
-            explicit SphereFunction(std::size_t dim, GeneType lb = -5.12, GeneType ub=5.12)
+            explicit SphereFunction(std::size_t dim, GeneType lb, GeneType ub)
                 : dimensions(dim), lower_bound(lb), upper_bound(ub) {}
 
             double evaluate(const std::vector<GeneType>& phenotype) const override {

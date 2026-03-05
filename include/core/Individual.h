@@ -5,6 +5,9 @@
 
 #include <vector>
 #include <limits>
+#include <iostream>
+#include <iomanip>
+#include <algorithm>
 
 namespace galib {
 
@@ -13,6 +16,9 @@ namespace galib {
     private:
         std::vector<GeneType> genotype;
         double fitness;
+
+        static constexpr std::size_t PRINT_LIMIT = 5;
+        static constexpr int PRINT_PRECISION = 4;
     public:
         Individual() : fitness(std::numeric_limits<double>::max()) {}
 
@@ -30,6 +36,19 @@ namespace galib {
 
         bool operator <(const Individual& other) const {
             return fitness < other.fitness;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const Individual& ind) {
+            os << "[   ";
+
+            std::size_t limit = std::min(ind.genotype.size(), PRINT_LIMIT);
+            for (std::size_t i = 0; i < limit; ++i) {
+                os << std::fixed << std::setprecision(PRINT_PRECISION) << ind.genotype[i] << "   ";
+            }
+            if (ind.genotype.size() > PRINT_LIMIT) os << "... ";
+            os << "]";
+
+            return os;
         }
     };
 

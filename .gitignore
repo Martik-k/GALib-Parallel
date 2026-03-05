@@ -31,6 +31,11 @@ env/
 myenv/
 myvenv/
 
+*.mp4
+*.gif
+
+visualizations/
+
 
 ##### LaTeX #####
 ## Core LaTeX auxiliary files
@@ -41,6 +46,7 @@ myvenv/
 *.synctex.gz
 *.toc
 *.out
+*.pdf
 
 ## Bibliography files
 *.bbl
