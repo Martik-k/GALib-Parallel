@@ -53,7 +53,7 @@ Execute the compiled binary from the build directory, passing the path to the de
 
 ```bash
 cd build
-./ga_example ../configs/viz_rastrigin.yaml // or viz_sphere.yaml
+./ga_example ../configs/viz_rastrigin.yaml  # or viz_sphere.yaml
 ```
 
 This runs the algorithm and generates a CSV log file containing the population history.
@@ -63,7 +63,7 @@ Generates MP4 and GIF animations showing the population converging toward the gl
 
 ```bash
 # Run from the project root
-python3 scripts/visualization.py viz_rastrigin.yaml // or viz_sphere.yaml
+python3 scripts/visualization.py viz_rastrigin.yaml  # or viz_sphere.yaml
 ```
 
 Files are automatically saved to visualizations/animations/ and visualizations/images/
