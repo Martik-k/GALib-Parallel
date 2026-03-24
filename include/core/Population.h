@@ -39,9 +39,9 @@ namespace galib {
 			}
 		}
 
-        std::size_t size() const { return individuals.size(); }
-        bool empty() const { return individuals.empty(); }
-        std::size_t getNumGenes() const { return num_genes_m; }
+        [[nodiscard]] std::size_t size() const { return individuals.size(); }
+        [[nodiscard]] bool empty() const { return individuals.empty(); }
+        [[nodiscard]] std::size_t getNumGenes() const { return num_genes_m; }
 
         Individual<GeneType>& operator [](std::size_t index) { return individuals[index]; }
         const Individual<GeneType>& operator [](std::size_t index) const { return individuals[index]; }
