@@ -19,7 +19,8 @@ namespace galib {
             Population<GeneType>& population,
             const std::vector<Individual<GeneType>>& deme
         ) const override {
-            const std::size_t count = deme.size();
+            const std::size_t count = std::min(deme.size(), population.size());
+
             std::vector<std::size_t> indices(population.size());
 
             std::iota(indices.begin(), indices.end(), 0);

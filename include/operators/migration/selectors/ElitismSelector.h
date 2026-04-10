@@ -23,6 +23,8 @@ namespace galib {
 
             std::iota(indices.begin(), indices.end(), 0);
 
+            count = std::min(count, population.size());
+
             std::ranges::nth_element(
                 indices,
                 indices.begin() + count,
