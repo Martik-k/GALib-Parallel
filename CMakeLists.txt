@@ -12,11 +12,13 @@ target_include_directories(ga_lib INTERFACE
 
 find_package(OpenMP)
 find_package(yaml-cpp REQUIRED)
+find_package(MPI REQUIRED)
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/main.cpp")
     add_executable(ga_example examples/main.cpp)
 
     target_link_libraries(ga_example PRIVATE ga_lib yaml-cpp)
+    target_link_libraries(ga_lib INTERFACE MPI::MPI_CXX)
 
     if(OpenMP_CXX_FOUND)
         target_link_libraries(ga_example PRIVATE OpenMP::OpenMP_CXX)
