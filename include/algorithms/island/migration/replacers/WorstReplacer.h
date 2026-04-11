@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "operators/migration/replacers/DemeReplacer.h"
+#include "algorithms/island/migration/replacers/DemeReplacer.h"
 #include "core/Individual.h"
 #include "core/Population.h"
 #include <vector>
