@@ -18,6 +18,7 @@ cmake-build-*/
 *.iml
 *.ipr
 GEMINI.md
+.geminiignore
 
 # === Python Environment & Cache ===
 __pycache__/
