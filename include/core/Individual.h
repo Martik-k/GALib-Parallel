@@ -30,6 +30,7 @@ namespace galib {
         std::vector<GeneType>& getGenotype() { return genotype; }
         const std::vector<GeneType>& getGenotype() const { return genotype; }
         void setGenotype(const std::vector<GeneType>& new_genotype) { genotype = new_genotype; }
+        void setGenotype(std::vector<GeneType>&& new_genotype) noexcept { genotype = std::move(new_genotype); }
 
         [[nodiscard]] double getFitness() const { return fitness; }
         void setFitness(double new_fitness) { fitness = new_fitness; }
