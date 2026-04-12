@@ -16,7 +16,7 @@ namespace galib {
 
         virtual void replaceDeme(
             Population<GeneType>& population,
-            const std::vector<Individual<GeneType>>& deme
+            std::vector<Individual<GeneType>>&& deme
         ) const = 0;
     };
 

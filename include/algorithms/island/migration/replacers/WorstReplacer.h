@@ -17,7 +17,7 @@ namespace galib {
     public:
         void replaceDeme(
             Population<GeneType>& population,
-            const std::vector<Individual<GeneType>>& deme
+            std::vector<Individual<GeneType>>&& deme
         ) const override {
             const std::size_t count = std::min(deme.size(), population.size());
 
@@ -33,7 +33,7 @@ namespace galib {
             );
 
             for (std::size_t i = 0; i < count; ++i) {
-                population[indices[i]] = deme[i];
+                population[indices[i]] = std::move(deme[i]);
             }
         }
     };
