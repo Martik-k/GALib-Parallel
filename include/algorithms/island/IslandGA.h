@@ -54,7 +54,7 @@ namespace galib {
 
         void generateNextGeneration(const Population<GeneType>& current_population, Population<GeneType>& new_population) {
             const std::size_t population_size = current_population.size();
-            const std::size_t elitism_offset = 0;
+            std::size_t elitism_offset = 0;
 
             if (use_elitism_m) {
                 new_population[0] = current_population.getBestIndividual();
