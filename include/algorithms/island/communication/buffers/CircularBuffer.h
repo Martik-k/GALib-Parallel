@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "MigrationBuffer.h"
+#include "algorithms/island/communication/buffers/MigrationBuffer.h"
 #include "core/Individual.h"
 #include <iterator>
 #include <vector>

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "serialization/Serializer.h"
+#include "algorithms/island/communication/serializers/Serializer.h"
 #include <vector>
 #include <cstdint>
 #include <bit>

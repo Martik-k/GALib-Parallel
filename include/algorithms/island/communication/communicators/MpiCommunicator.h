@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "communication/Communicator.h"
-#include "serialization/Serializer.h"
+#include "algorithms/island/communication/communicators/Communicator.h"
+#include "algorithms/island/communication/serializers/Serializer.h"
 #include <mpi.h>
 #include <vector>
 #include <cstdint>
@@ -50,7 +50,7 @@ namespace galib {
         }
 
         void startReceiving(MigrationBuffer<GeneType>& target_buffer) override {
-            migration_buffer_m = target_buffer;
+            migration_buffer_m = &target_buffer;
 
 
             MPI_Irecv(
