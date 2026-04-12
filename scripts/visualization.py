@@ -119,4 +119,5 @@ except Exception as e:
 
 print(f"Running visualization for: {name}")
 print(f"Using config: {CONFIG_PATH}")
-plt.show()
+fig.savefig(photo_path, dpi=150, bbox_inches='tight')
+print(f"Successfully saved static plot: {photo_path}")

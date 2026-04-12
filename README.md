@@ -56,6 +56,19 @@ cd build
 ./ga_example ../configs/viz_rastrigin.yaml  # or viz_sphere.yaml
 ```
 
+To run the CUDA backend (when CUDA toolkit is available during CMake configure), use a config with:
+
+```yaml
+algorithm:
+   backend: "CUDA"
+```
+
+Example:
+
+```bash
+./ga_example ../configs/viz_rastrigin_cuda.yaml
+```
+
 This runs the algorithm and generates a CSV log file containing the population history.
 
 ### 2. 3D Evolution Visualization

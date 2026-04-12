@@ -25,6 +25,7 @@ namespace galib {
                     config.algorithm.max_generations = node["algorithm"]["max_generations"].as<std::size_t>();
                     config.algorithm.mutation_rate = node["algorithm"]["mutation_rate"].as<double>();
                     config.algorithm.crossover_rate = node["algorithm"]["crossover_rate"].as<double>();
+                    config.algorithm.backend = node["algorithm"]["backend"].as<std::string>("OpenMP");
 
                     if (node["algorithm"]["selection"]) {
                         config.algorithm.selection.type =
