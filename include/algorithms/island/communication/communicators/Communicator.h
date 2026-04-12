@@ -4,7 +4,7 @@
 #pragma once
 
 #include "core/Individual.h"
-#include "buffers/MigrationBuffer.h"
+#include "algorithms/island/communication/buffers/MigrationBuffer.h"
 #include <vector>
 #include <cstddef>
 
