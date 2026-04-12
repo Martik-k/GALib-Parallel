@@ -28,7 +28,7 @@ namespace galib {
             std::ranges::nth_element(
                 indices,
                 indices.begin() + count,
-                std::greater{},
+                std::less{},
                 [&](const std::size_t i) -> const Individual<GeneType>& { return population[i]; }
             );
 

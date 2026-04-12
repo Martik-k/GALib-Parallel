@@ -28,7 +28,7 @@ namespace galib {
             std::ranges::nth_element(
                 indices,
                 indices.begin() + count,
-                std::less{},
+                std::greater{},
                 [&](const std::size_t i) { return population[i]; }
             );
 
