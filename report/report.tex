@@ -43,7 +43,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \maketitle
 
     \begin{abstract}
-        While Genetic Algorithms (GAs) are powerful optimization tools, their high computational cost limits scalability. This paper details the development of a genetic algorithm library that includes four parallelization strategies across shared-memory, distributed, and accelerator-based architectures to solve this problem. We describe a basic multi-threaded Generational GA and outline future library additions: a CUDA-accelerated GA, an MPI-based Island Model, an OpenMP Cellular GA, and a hybrid OpenMP/AVX Differential Evolution algorithm. The performance of this library will be tested using 3D mathematical surfaces and high-dimensional polygon image approximation tasks.
+        While Genetic Algorithms (GAs) are powerful optimization tools, their high computational cost limits scalability. This paper details the development of a genetic algorithm library that includes shared-memory and accelerator-based parallelization strategies to solve this problem. We describe an implemented multi-threaded Generational GA, an implemented CUDA-accelerated GA, and outline future additions such as an MPI-based Island Model, an OpenMP Cellular GA, and a hybrid OpenMP/AVX Differential Evolution algorithm. The performance of this library is evaluated using 3D mathematical surfaces and high-dimensional polygon image approximation tasks.
     \end{abstract}
 
     \begin{IEEEkeywords}
@@ -55,7 +55,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
     To solve this, different parallelization methods can be used, depending on the hardware and the specific algorithm. This project aims to develop a fast C++ library that includes four different algorithms: a classic Generational GA, an Island Model GA, a Cellular GA, and Differential Evolution (DE). Using tools like OpenMP, OpenMPI, oneAPI/oneTBB, and CUDA, we will adapt these algorithms to the best hardware options (shared memory, distributed memory, and GPUs). 
 
-    This paper presents the current progress of the library. It details a basic multi-threaded generational algorithm and outlines the theory and plans for future parallel models. The source code is publicly available at \faGithub\ \href{https://github.com/Martik-k/GALib-Parallel}{our GitHub}.
+    This paper presents the current progress of the library. It details the implemented multi-threaded generational algorithm and CUDA backend, then outlines the theory and plans for future parallel models. The source code is publicly available at \faGithub\ \href{https://github.com/Martik-k/GALib-Parallel}{our GitHub}.
 
     \section{Background and Preliminaries}
 
@@ -117,9 +117,10 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
     \section{Future Algorithmic Implementations}
 
-    To build a complete parallelization toolkit, four advanced algorithms will be added to the library.
+    To build a complete parallelization toolkit, the library still plans to add distributed and hybrid algorithms.
 
     \subsection{Generational GA with CUDA Acceleration}
+    The CUDA backend is already implemented and benchmarked in this version of the project. It maps population evaluation, selection, crossover, and mutation to GPU execution so that larger populations can benefit from SIMT-style parallelism. The measured results show that this approach becomes beneficial once the workload is large enough to amortize GPU overhead.
 
     \subsection{Island Model GA with MPI}
         For cluster computers with distributed memory, the library will include an Island Model GA. Here, the main population is divided into isolated groups, or ``islands,'' that evolve on their own in separate processes. 
@@ -136,14 +137,47 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     We plan to implement Differential Evolution (DE) for faster optimization of continuous variables. Unlike basic mutation, DE creates new solutions by calculating the mathematical difference between existing individuals in the population. This helps the algorithm adapt its search direction and converge much faster.
 
     \section{Benchmark Problems and Demonstrations}
+    To compare the CPU and CUDA implementations, we executed the same genetic algorithm parameters on two benchmark functions: Sphere and Rastrigin. Each function was evaluated at three problem sizes that combine dimension and population growth: Small (2D, 250 individuals), Medium (10D, 2000 individuals), and Large (50D, 10000 individuals). All runs used 50 generations, tournament selection, single-point crossover, and Gaussian mutation.
 
-    \section{Visulization}
+    The benchmark matrix was chosen to expose two important effects. First, the Sphere function is computationally cheaper and highlights kernel-launch overhead. Second, the Rastrigin function is more expensive and better represents the kind of multimodal landscapes where GPU parallelism can pay off.
 
     \section{Experimental Setup}
-    % This section will detail the hardware specifications, cluster configurations, compiler versions, and specific GA parameters (population size, mutation rates, epoch lengths) used during testing.
+    The measurements were collected on the same machine using the compiled \texttt{ga\_example} binary. CPU runs used the OpenMP backend, while GPU runs used the CUDA backend activated by the YAML configuration field \texttt{algorithm.backend = CUDA}. Reported times are wall-clock durations for a full optimization run.
     
     \section{Results and Discussion}
-    % This section will present performance metrics, execution times, speedup graphs (Amdahl's Law analysis), and convergence rate comparisons to demonstrate the library's efficiency.
+    Table~\ref{tab:cuda_cpu_benchmark} summarizes the measured runtimes and the corresponding speedup defined as $S = T_{CPU} / T_{CUDA}$. Figure~\ref{fig:cuda_cpu_comparison} visualizes the same comparison.
+
+    \begin{table}[t]
+    \centering
+    \scriptsize
+    \begin{tabular}{llrrrrr}
+    \hline
+    Function & Size & Dim. & Pop. & CPU (s) & CUDA (s) & Speedup \\
+    \hline
+    Sphere & Small & 2 & 250 & 0.0103 & 2.0615 & 0.005 \\
+    Sphere & Medium & 10 & 2000 & 0.0239 & 0.1799 & 0.133 \\
+    Sphere & Large & 50 & 10000 & 0.3215 & 0.2161 & 1.490 \\
+    Rastrigin & Small & 2 & 250 & 0.0068 & 0.2474 & 0.027 \\
+    Rastrigin & Medium & 10 & 2000 & 0.0226 & 0.1915 & 0.118 \\
+    Rastrigin & Large & 50 & 10000 & 0.4618 & 0.2831 & 1.632 \\
+    \hline
+    \end{tabular}
+    \caption{CPU/OpenMP versus CUDA runtime comparison for the genetic algorithm. Speedup is computed as $T_{CPU} / T_{CUDA}$.}
+    \label{tab:cuda_cpu_benchmark}
+    \end{table}
+
+    \begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../visualizations/images/cuda_cpu_comparison.png}
+    \caption{Runtime comparison between CPU/OpenMP and CUDA implementations across benchmark sizes.}
+    \label{fig:cuda_cpu_comparison}
+    \end{figure}
+
+    The results show a clear crossover point. For Small and Medium problems, OpenMP is faster because the problem size is too small to amortize GPU launch and data-transfer overhead. For Large problems, CUDA becomes faster on both functions, which matches the expected behavior of SIMT hardware when the workload is large enough to occupy the GPU efficiently.
+
+    On Sphere, CUDA reaches a 1.49x speedup at the Large size. On Rastrigin, CUDA reaches a 1.63x speedup at the Large size. The difference between the two functions is informative: Rastrigin is more arithmetic-heavy due to its periodic oscillations, which increases computational intensity and improves GPU utilization relative to the cheaper Sphere benchmark.
+
+    These measurements support the implementation goal of the project: CPU/OpenMP remains the best choice for small optimization jobs, while CUDA is beneficial when the population and dimensionality are large enough to justify GPU parallelism. The overhead incurred by kernel launches and host-device data transfers becomes negligible when amortized over thousands of fitness function evaluations.
 
     \section{Conclusion}
     % This section will summarize the library's development progress, highlighting the capabilities of the implemented parallelization strategies across specific hardware constraints.
