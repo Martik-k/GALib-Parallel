@@ -13,7 +13,7 @@
 #include "core/Individual.h"
 #include "core/Population.h"
 #include "core/FitnessFunction.h"
-#include "algorithms/StandardGA.h"
+#include "algorithms/standart/StandartGA.h"
 
 #include "operators/selection/TournamentSelection.h"
 #include "operators/crossover/SinglePointCrossover.h"
