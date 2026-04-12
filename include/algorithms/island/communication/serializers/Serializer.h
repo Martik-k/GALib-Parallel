@@ -14,6 +14,7 @@ namespace galib {
         virtual ~Serializer() = default;
 
         virtual std::vector<std::uint8_t> serialize(const std::vector<Individual<GeneType>>& individuals) const = 0;
+
         virtual std::vector<Individual<GeneType>> deserialize(const std::vector<std::uint8_t>& individuals_serialized) const = 0;
     };
 }

@@ -17,16 +17,13 @@ namespace galib {
 
     public:
         std::vector<std::uint8_t> serialize(const std::vector<Individual<GeneType>>& individuals) const override {
-            if (individuals.empty()) {
-                return std::vector<std::uint8_t>();
-            }
+            if (individuals.empty()) { return {}; }
 
-            const std::uint32_t individuals_count = individuals.size();
-            const std::uint32_t individual_genes_count = individuals[0].getGenotype().size();
+            const auto individuals_count = static_cast<std::uint32_t>(individuals.size());
+            const auto individual_genes_count = static_cast<std::uint32_t>(individuals[0].getGenotype().size());
 
-            const std::size_t individual_size_bytes = sizeof(GeneType) * individual_genes_count + sizeof(double);
-            const std::size_t individuals_size_bytes = individual_size_bytes * individuals_count;
-            const std::size_t total_size_bytes = individuals_size_bytes + sizeof(std::uint32_t) * 2;
+            const std::size_t total_size_bytes = (sizeof(std::uint32_t) * 2) + 
+                (individuals_count * (sizeof(double) + (sizeof(GeneType) * individual_genes_count)));
 
             std::vector<std::uint8_t> data_serialized;
             data_serialized.reserve(total_size_bytes);
@@ -41,8 +38,8 @@ namespace galib {
 
                 if constexpr (std::endian::native == std::endian::little) {
                     const auto* data_ptr = reinterpret_cast<const std::uint8_t*>(genotype.data());
-                    const std::size_t total_gene_bytes = sizeof(GeneType) * individual_genes_count;
-                    data_serialized.insert(data_serialized.end(), data_ptr, data_ptr + total_gene_bytes);
+                    const std::size_t genotype_bytes = sizeof(GeneType) * individual_genes_count;
+                    data_serialized.insert(data_serialized.end(), data_ptr, data_ptr + genotype_bytes);
                 } else {
                     for (const auto& gene : genotype) {
                         appendSerialize(data_serialized, gene);
@@ -62,7 +59,6 @@ namespace galib {
 
             const auto individuals_count = readDeserialize<uint32_t>(read_ptr);
             const auto individual_genes_count = readDeserialize<uint32_t>(read_ptr);
-            const std::size_t individual_gene_bytes = sizeof(GeneType) * individual_genes_count;
 
             std::vector<Individual<GeneType>> individuals;
             individuals.reserve(individuals_count);
@@ -73,8 +69,9 @@ namespace galib {
                 std::vector<GeneType> genotype(individual_genes_count);
 
                 if constexpr (std::endian::native == std::endian::little) {
-                    std::copy_n(read_ptr, individual_gene_bytes, reinterpret_cast<std::uint8_t*>(genotype.data()));
-                    read_ptr += individual_gene_bytes;
+                    const std::size_t genotype_bytes = sizeof(GeneType) * individual_genes_count;
+                    std::copy_n(read_ptr, genotype_bytes, reinterpret_cast<std::uint8_t*>(genotype.data()));
+                    read_ptr += genotype_bytes;
                 } else {
                     for (std::size_t j = 0; j < individual_genes_count; ++j) {
                         genotype[j] = readDeserialize<GeneType>(read_ptr);
