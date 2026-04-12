@@ -20,6 +20,7 @@ namespace galib {
                 std::size_t max_generations;
                 double mutation_rate;
                 double crossover_rate;
+                std::string backend;
 
                 struct Selection {
                     std::string type;
