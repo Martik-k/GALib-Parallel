@@ -12,6 +12,7 @@ target_include_directories(ga_lib INTERFACE
 
 find_package(OpenMP)
 find_package(yaml-cpp REQUIRED)
+find_package(TBB REQUIRED)
 
 include(CheckLanguage)
 check_language(CUDA)
@@ -33,7 +34,7 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/main.cpp")
     add_executable(ga_example examples/main.cpp)
 
-    target_link_libraries(ga_example PRIVATE ga_lib yaml-cpp)
+    target_link_libraries(ga_example PRIVATE ga_lib yaml-cpp TBB::tbb)
 
     if(TARGET ga_cuda)
         target_link_libraries(ga_example PRIVATE ga_cuda)
