@@ -21,23 +21,41 @@ namespace galib {
                     config.problem.lower_bound = node["problem"]["lower_bound"].as<double>();
                     config.problem.upper_bound = node["problem"]["upper_bound"].as<double>();
 
+                    config.algorithm.type = node["algorithm"]["type"].as<std::string>("standard");
                     config.algorithm.pop_size = node["algorithm"]["pop_size"].as<std::size_t>();
                     config.algorithm.max_generations = node["algorithm"]["max_generations"].as<std::size_t>();
                     config.algorithm.mutation_rate = node["algorithm"]["mutation_rate"].as<double>();
                     config.algorithm.crossover_rate = node["algorithm"]["crossover_rate"].as<double>();
-                    config.algorithm.backend = node["algorithm"]["backend"].as<std::string>("OpenMP");
+                    config.algorithm.backend = node["algorithm"]["backend"].as<std::string>("serial");
 
                     if (node["algorithm"]["selection"]) {
                         config.algorithm.selection.type =
                             node["algorithm"]["selection"]["type"].as<std::string>("Tournament");
+                        config.algorithm.selection.scope =
+                            node["algorithm"]["selection"]["scope"].as<std::string>("global");
                         config.algorithm.selection.tournament_size =
-                            node["algorithm"]["selection"]["tournament_size"].as<int>();
+                            node["algorithm"]["selection"]["tournament_size"].as<int>(3);
                     } else {
                         config.algorithm.selection.type = "Tournament";
+                        config.algorithm.selection.scope = "global";
                         config.algorithm.selection.tournament_size = 3;
                     }
 
-                    config.output.log_file = node["output"]["log_file"].as<std::string>("evolution_history.csv");
+                    if (node["algorithm"]["cellular"]) {
+                        config.algorithm.cellular.rows =
+                            node["algorithm"]["cellular"]["rows"].as<std::size_t>(0);
+                        config.algorithm.cellular.cols =
+                            node["algorithm"]["cellular"]["cols"].as<std::size_t>(0);
+                        config.algorithm.cellular.use_local_elitism =
+                            node["algorithm"]["cellular"]["use_local_elitism"].as<bool>(true);
+                    } else {
+                        config.algorithm.cellular.rows = 0;
+                        config.algorithm.cellular.cols = 0;
+                        config.algorithm.cellular.use_local_elitism = true;
+                    }
+
+                    config.output.log_file =
+                        node["output"]["log_file"].as<std::string>("evolution_history.csv");
 
                 } catch (const YAML::Exception& e) {
                     throw std::runtime_error("Error parsing YAML config: " + std::string(e.what()));
