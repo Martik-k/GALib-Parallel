@@ -129,14 +129,10 @@ namespace galib {
             communicator_m.broadcast(outgoing_migrants, neighbors);
         }
 
-        void printGenerationState(const Population<GeneType>& population, const std::size_t generation_idx) const {
-            if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
-                if (communicator_m.getRank() == 0) {
-                    std::cout << "Generation " << (generation_idx + 1)
-                        << " | Best Fitness: " << population.getBestIndividual().getFitness()
-                        << std::endl;
-                }
-            }
+        void synchronizeGlobalBest(Population<GeneType>& population) {
+            const Individual<GeneType> global_best = communicator_m.allReduceBest(population.getBestIndividual());
+
+            population[0] = std::move(global_best);
         }
 
     public:
@@ -155,7 +151,7 @@ namespace galib {
         ) : fitness_function_m(ff), selection_m(sel), mutation_m(mu), crossover_m(cs),
             deme_replacer_m(replacer), deme_selector_m(selector), migration_buffer_m(buffer),
             communicator_m(comm), topology_m(topology), config_m(config), use_elitism_m(elitism),
-            max_immigrants_m(static_cast<std::size_t>(config.population_size * config.immigration_quota)) {}
+            max_immigrants_m(static_cast<std::size_t>(static_cast<double>(config.population_size) * config.immigration_quota)) {}
 
         void run(Population<GeneType>& population) {
             if (population.empty()) { return; }
@@ -179,11 +175,11 @@ namespace galib {
                 evaluatePopulation(population);
 
                 handleOutgoingMigrants(population, generation_idx);
-
-                printGenerationState(population, generation_idx);
             }
 
             finalizeCommunication();
+
+            synchronizeGlobalBest(population);
         }
     };
 }
