@@ -15,6 +15,7 @@
 #include "core/FitnessFunction.h"
 #include "algorithms/StandardGA.h"
 #include "algorithms/StandardGACUDA.h"
+#include "algorithms/DifferentialEvolutionGA.h"
 
 #include "operators/selection/TournamentSelection.h"
 #include "operators/crossover/SinglePointCrossover.h"
@@ -60,29 +61,44 @@ int main(int argc, char* argv[]) {
 #endif
         } else {
             auto fitness_fn = utils::FitnessFactory::create(config.problem);
-
-            TournamentSelection<double> selector(config.algorithm.selection.tournament_size);
-            SinglePointCrossover<double> crossover;
-            GaussianMutation<double> mutation(config.algorithm.mutation_rate);
-
             population.initialize(fitness_fn->getLowerBound(), fitness_fn->getUpperBound());
 
-            StandardGA<double> ga(
-                *fitness_fn,
-                selector,
-                mutation,
-                crossover,
-                config.algorithm.mutation_rate,
-                config.algorithm.crossover_rate,
-                config.algorithm.max_generations,
-                true
-            );
+            if (config.algorithm.backend == "DE" || config.algorithm.backend == "OpenMP_DE") {
+                // Differential Evolution GA
+                DifferentialEvolutionGA<double> de(
+                    *fitness_fn,
+                    config.algorithm.mutation_rate,  // F
+                    config.algorithm.crossover_rate, // CR
+                    config.algorithm.max_generations
+                );
 
-            std::cout << "Starting evolution (OpenMP active if compiled)...\n" << std::endl;
+                std::cout << "Starting Differential Evolution (Hybrid OpenMP+SIMD)...\n" << std::endl;
 
-            ga.enableLogging(config.output.log_file);
+                de.enableLogging(config.output.log_file);
+                de.run(population);
 
-            ga.run(population);
+            } else {
+                // Standard GA
+                TournamentSelection<double> selector(config.algorithm.selection.tournament_size);
+                SinglePointCrossover<double> crossover;
+                GaussianMutation<double> mutation(config.algorithm.mutation_rate);
+
+                StandardGA<double> ga(
+                    *fitness_fn,
+                    selector,
+                    mutation,
+                    crossover,
+                    config.algorithm.mutation_rate,
+                    config.algorithm.crossover_rate,
+                    config.algorithm.max_generations,
+                    true
+                );
+
+                std::cout << "Starting Standard GA (OpenMP active if compiled)...\n" << std::endl;
+
+                ga.enableLogging(config.output.log_file);
+                ga.run(population);
+            }
         }
 
         std::cout << "\n=== Evolution Finished ===" << std::endl;

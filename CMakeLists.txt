@@ -5,10 +5,21 @@ project(GALib-Parallel VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+    message(STATUS "Setting build type to 'Release' as none was specified.")
+endif()
+
 add_library(ga_lib INTERFACE)
 target_include_directories(ga_lib INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(ga_lib INTERFACE -O3 -march=native -ffast-math)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_compile_options(ga_lib INTERFACE /O2 /arch:AVX2 /fp:fast)
+endif()
 
 find_package(OpenMP)
 find_package(yaml-cpp REQUIRED)
