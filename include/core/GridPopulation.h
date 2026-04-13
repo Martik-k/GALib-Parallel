@@ -65,6 +65,24 @@ public:
         return data_.getNumGenes();
     }
 
+    Individual<GeneType>& linearAt(std::size_t index) {
+        if (index >= data_.size()) {
+            throw std::out_of_range("GridPopulation linear index out of range");
+        }
+        return data_[index];
+    }
+
+    const Individual<GeneType>& linearAt(std::size_t index) const {
+        if (index >= data_.size()) {
+            throw std::out_of_range("GridPopulation linear index out of range");
+        }
+        return data_[index];
+    }
+
+    bool empty() const {
+        return data_.empty();
+    }
+
 
     std::vector<std::pair<std::size_t, std::size_t>>
     getNeighbors(std::size_t row, std::size_t col) const {
