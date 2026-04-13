@@ -114,7 +114,7 @@ public:
           mutation_rate_m(m_rate),
           crossover_rate_m(c_rate),
           max_generations_m(max_gen),
-          use_elitism_m(elitism) {}
+          use_local_elitism_m(elitism) {}
 
     void enableLogging(const std::string& filename) {
         log_file_m = filename;
