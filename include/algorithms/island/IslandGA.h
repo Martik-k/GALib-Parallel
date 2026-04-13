@@ -11,8 +11,8 @@
 
 #include "algorithms/island/migration/replacers/DemeReplacer.h"
 #include "algorithms/island/migration/selectors/DemeSelector.h"
-#include "communication/buffers/MigrationBuffer.h"
-#include "communication/communicators/Communicator.h"
+#include "algorithms/island/communication/buffers/MigrationBuffer.h"
+#include "algorithms/island/communication/communicators/Communicator.h"
 #include "algorithms/island/IslandConfig.h"
 #include "topology/Topology.h"
 
@@ -132,7 +132,17 @@ namespace galib {
         void synchronizeGlobalBest(Population<GeneType>& population) {
             const Individual<GeneType> global_best = communicator_m.allReduceBest(population.getBestIndividual());
 
-            population[0] = std::move(global_best);
+            if (global_best.getFitness() < population.getBestIndividual().getFitness()) {
+                population[0] = std::move(global_best);
+            }
+        }
+
+        void logState(const Population<GeneType>& population, const std::size_t generation_idx) const {
+            if (communicator_m.getRank() == 0) {
+                std::cout << "Generation " << (generation_idx + 1)
+                          << " | Global Best Fitness: " << population.getBestIndividual().getFitness()
+                          << std::endl;
+            }
         }
 
     public:
@@ -175,11 +185,17 @@ namespace galib {
                 evaluatePopulation(population);
 
                 handleOutgoingMigrants(population, generation_idx);
+
+                if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
+                    synchronizeGlobalBest(population);
+                    logState(population, generation_idx);
+                }
             }
 
             finalizeCommunication();
 
             synchronizeGlobalBest(population);
+            logState(population, config_m.max_generations - 1);
         }
     };
 }
