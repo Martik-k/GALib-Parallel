@@ -116,6 +116,43 @@ namespace galib {
             return individuals;
         }
 
+        std::vector<Individual<GeneType>> deserialize(const std::uint8_t* data, std::size_t size) const override {
+            if (data == nullptr || size == 0) {
+                return {};
+            }
+
+            const std::uint8_t* read_ptr = data;
+
+            const auto individuals_count = readDeserialize<uint32_t>(read_ptr);
+            const auto individual_genes_count = readDeserialize<uint32_t>(read_ptr);
+
+            std::vector<Individual<GeneType>> individuals;
+            individuals.reserve(individuals_count);
+
+            for (std::size_t i = 0; i < individuals_count; ++i) {
+                const double fitness = readDeserialize<double>(read_ptr);
+
+                std::vector<GeneType> genotype(individual_genes_count);
+
+                if constexpr (std::endian::native == std::endian::little) {
+                    const std::size_t genotype_bytes = sizeof(GeneType) * individual_genes_count;
+                    std::copy_n(read_ptr, genotype_bytes, reinterpret_cast<std::uint8_t*>(genotype.data()));
+                    read_ptr += genotype_bytes;
+                } else {
+                    for (std::size_t j = 0; j < individual_genes_count; ++j) {
+                        genotype[j] = readDeserialize<GeneType>(read_ptr);
+                    }
+                }
+
+                Individual<GeneType> individual;
+                individual.setGenotype(std::move(genotype));
+                individual.setFitness(fitness);
+                individuals.push_back(std::move(individual));
+            }
+
+            return individuals;
+        }
+
     private:
         template <typename T>
         static void appendSerialize(std::vector<uint8_t>& buffer, T value) {
