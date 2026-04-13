@@ -25,7 +25,7 @@ namespace galib {
         std::vector<uint8_t> receive_buffer_m;
         MigrationBuffer<GeneType>* migration_buffer_m = nullptr;
 
-        std::size_t rank_m;
+        int rank_m;
         std::size_t network_size_m;
 
         bool is_running_m = false;
@@ -34,24 +34,24 @@ namespace galib {
     public:
         explicit MpiCommunicator(Serializer<GeneType>& serializer, const std::size_t receive_buffer_size)
             : serializer_m(serializer), receive_buffer_m(receive_buffer_size) {
-
             int rank;
             int network_size;
 
             MPI_Comm_rank(MPI_COMM_WORLD, &rank);
             MPI_Comm_size(MPI_COMM_WORLD, &network_size);
 
-            rank_m = static_cast<std::size_t>(rank);
+            rank_m = rank;
             network_size_m = static_cast<std::size_t>(network_size);
         }
 
-        ~MpiCommunicator() override final {
+        ~MpiCommunicator() final {
             MpiCommunicator::stopReceiving();
         }
 
         void startReceiving(MigrationBuffer<GeneType>& target_buffer) override {
-            migration_buffer_m = &target_buffer;
+            stopReceiving();
 
+            migration_buffer_m = &target_buffer;
 
             MPI_Irecv(
                 receive_buffer_m.data(),
@@ -90,12 +90,10 @@ namespace galib {
                     &received_bytes_count
                 );
 
-                std::vector<std::uint8_t> received_bytes(
-                    receive_buffer_m.begin(),
-                    receive_buffer_m.begin() + received_bytes_count
+                std::vector<Individual<GeneType>> migrants = serializer_m.deserialize(
+                    receive_buffer_m.data(),
+                    static_cast<std::size_t>(received_bytes_count)
                 );
-
-                std::vector<Individual<GeneType>> migrants = serializer_m.deserialize(received_bytes);
 
                 migration_buffer_m->push(std::move(migrants));
 
@@ -141,10 +139,79 @@ namespace galib {
 
         void broadcast(const std::vector<Individual<GeneType>>& deme,
                        const std::vector<std::size_t>& destination_ranks) override {
+            if (destination_ranks.empty()) return;
+
+            const std::vector<std::uint8_t> serialized_data = serializer_m.serialize(deme);
+
             for (const auto& destination_rank : destination_ranks) {
-                send(deme, destination_rank);
-            }
+                MPI_Send(
+                    serialized_data.data(),
+                    static_cast<int>(serialized_data.size()),
+                    MPI_BYTE,
+                    static_cast<int>(destination_rank),
+                    MPI_MESSAGE_TAG,
+                    MPI_COMM_WORLD
+                );            }
         }
+
+        Individual<GeneType> allReduceBest(Individual<GeneType> individual) const override {
+            struct DoubleInt {
+                double fitness;
+                int rank;
+            };
+
+            const DoubleInt local_best{individual.getFitness(), rank_m};
+            DoubleInt global_best;
+
+            MPI_Allreduce(
+                &local_best,
+                &global_best,
+                1,
+                MPI_DOUBLE_INT,
+                MPI_MINLOC,
+                MPI_COMM_WORLD
+            );
+
+            std::vector<std::uint8_t> buffer;
+            int buffer_size = 0;
+
+            if (rank_m == global_best.rank) {
+                buffer = std::move(serializer_m.serialize(individual));
+                buffer_size = static_cast<int>(buffer.size());
+            }
+
+            MPI_Bcast(
+                &buffer_size,
+                1,
+                MPI_INT,
+                global_best.rank,
+                MPI_COMM_WORLD
+            );
+
+            if (buffer_size > 0) {
+                if (rank_m != global_best.rank) {
+                    buffer.resize(buffer_size);
+                }
+
+                MPI_Bcast(
+                    buffer.data(),
+                    buffer_size,
+                    MPI_BYTE,
+                    global_best.rank,
+                    MPI_COMM_WORLD
+                );
+            }
+
+            if (rank_m == global_best.rank) { return individual; }
+
+            auto deserialized = serializer_m.deserialize(buffer);
+            if (deserialized.empty()) {
+                return std::move(individual);
+            }
+
+            return std::move(deserialized[0]);
+        }
+
 
         [[nodiscard]] std::size_t getRank() const override {
             return rank_m;

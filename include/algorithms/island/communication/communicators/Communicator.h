@@ -25,7 +25,9 @@ namespace galib {
 
         virtual void broadcast(const std::vector<Individual<GeneType>>& deme,
                                const std::vector<std::size_t>& destination_ranks) = 0;
-        
+
+        virtual Individual<GeneType> allReduceBest(Individual<GeneType> individual) const = 0;
+
         [[nodiscard]] virtual std::size_t getRank() const = 0;
 
         [[nodiscard]] virtual std::size_t getSize() const = 0;
