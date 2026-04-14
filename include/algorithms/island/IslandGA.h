@@ -15,6 +15,7 @@
 #include "algorithms/island/communication/communicators/Communicator.h"
 #include "algorithms/island/IslandConfig.h"
 #include "topology/Topology.h"
+#include "utils/StateLogger.h"
 
 #include <iostream>
 #include <random>
@@ -37,6 +38,8 @@ namespace galib {
         const Topology& topology_m;
 
         const IslandConfig& config_m;
+
+        utils::StateLogger<GeneType>* logger_m = nullptr;
 
         bool use_elitism_m;
 
@@ -157,10 +160,12 @@ namespace galib {
             Communicator<GeneType>& comm,
             const Topology& topology,
             const IslandConfig& config,
-            const bool elitism = true
+            const bool elitism = true,
+            utils::StateLogger<GeneType>* logger = nullptr
         ) : fitness_function_m(ff), selection_m(sel), mutation_m(mu), crossover_m(cs),
             deme_replacer_m(replacer), deme_selector_m(selector), migration_buffer_m(buffer),
-            communicator_m(comm), topology_m(topology), config_m(config), use_elitism_m(elitism),
+            communicator_m(comm), topology_m(topology), config_m(config), logger_m(logger),
+            use_elitism_m(elitism),
             max_immigrants_m(static_cast<std::size_t>(static_cast<double>(config.population_size) * config.immigration_quota)) {}
 
         void run(Population<GeneType>& population) {
@@ -175,6 +180,11 @@ namespace galib {
 
             initializeCommunication();
 
+            if (logger_m && config_m.log_interval > 0) {
+                logger_m->writeHeader(num_genes);
+                logger_m->log(population, 0);
+            }
+
             for (std::size_t generation_idx = 0; generation_idx < config_m.max_generations; ++generation_idx) {
                 handleIncomingMigrants(population);
 
@@ -185,6 +195,10 @@ namespace galib {
                 evaluatePopulation(population);
 
                 handleOutgoingMigrants(population, generation_idx);
+
+                if (logger_m && config_m.log_interval > 0 && (generation_idx + 1) % config_m.log_interval == 0) {
+                    logger_m->log(population, generation_idx + 1);
+                }
 
                 if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
                     synchronizeGlobalBest(population);

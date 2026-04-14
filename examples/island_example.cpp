@@ -15,6 +15,7 @@
 #include "operators/mutation/GaussianMutation.h"
 #include "benchmarks/SphereFunction.h"
 #include "core/Population.h"
+#include "utils/StateLogger.h"
 
 using namespace galib;
 
@@ -37,6 +38,8 @@ int main(int argc, char* argv[]) {
         config.migration_interval = 20;
         config.migration_size = 5;
         config.immigration_quota = 0.2;
+        config.log_interval = 5;
+        config.log_directory = "island-logs";
 
         BinarySerializer<double> serializer;
 
@@ -52,6 +55,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
+        utils::StateLogger<double> logger(config.log_directory, communicator.getRank());
         CircularBuffer<double> buffer(config.buffer_capacity, config.migration_size);
         WorstReplacer<double> replacer;
         ElitismSelector<double> selector;
@@ -68,7 +72,9 @@ int main(int argc, char* argv[]) {
             buffer,
             communicator,
             topology,
-            config
+            config,
+            true,
+            &logger
         );
 
         // 4. Initialize Population
