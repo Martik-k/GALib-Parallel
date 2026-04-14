@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "LocalSelection.h"
+#include "algorithms/cellular/selection/LocalSelection.h"
 #include <stdexcept>
 
 namespace galib {

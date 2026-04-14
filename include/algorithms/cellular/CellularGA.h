@@ -5,7 +5,7 @@
 
 #include "core/GridPopulation.h"
 #include "core/FitnessFunction.h"
-#include "operators/selection/LocalSelection.h"
+#include "algorithms/cellular/selection/LocalSelection.h"
 #include "operators/mutation/Mutation.h"
 #include "operators/crossover/Crossover.h"
 
@@ -176,8 +176,6 @@ public:
 
             std::swap(population, new_population);
 
-           
-
             if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
                 std::cout << "Generation " << (generation_idx + 1)
                         << " | Best Fitness: " << population.getBestIndividual().getFitness()
@@ -189,7 +187,7 @@ public:
             log.close();
         }
     }
-    };
+};
 
 } // namespace galib
 
