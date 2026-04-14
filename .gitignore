@@ -1,43 +1,47 @@
+# === Build & Binaries ===
 ga_example
 *.exe
 *.out
 *.app
-
 /build/
 /CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 
+# === IDE & Editor Specific ===
 .vscode/
 .history/
-
-__pycache__/
-*.py[cod]
-.ipynb_checkpoints/
-
 .idea/
 cmake-build-*/
 *.iws
 *.iml
 *.ipr
+GEMINI.md
+.geminiignore
+.gemini/
 
-.DS_Store
-Thumbs.db
-
+# === Python Environment & Cache ===
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
 .venv/
 venv/
 env/
 myenv/
 myvenv/
 
+# === OS Specific ===
+.DS_Store
+Thumbs.db
+
+# === Media & Documentation ===
 *.mp4
 *.gif
-
 visualizations/
+articles/
 
-
-##### LaTeX #####
+# === LaTeX ===
 ## Core LaTeX auxiliary files
 *.aux
 *.fdb_latexmk

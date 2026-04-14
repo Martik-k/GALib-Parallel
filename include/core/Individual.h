@@ -25,17 +25,22 @@ namespace galib {
         explicit Individual(std::size_t num_genes)
             : genotype(num_genes), fitness(std::numeric_limits<double>::max()) {}
 
-        std::size_t size() const { return genotype.size(); }
+        [[nodiscard]] std::size_t size() const { return genotype.size(); }
 
         std::vector<GeneType>& getGenotype() { return genotype; }
         const std::vector<GeneType>& getGenotype() const { return genotype; }
         void setGenotype(const std::vector<GeneType>& new_genotype) { genotype = new_genotype; }
+        void setGenotype(std::vector<GeneType>&& new_genotype) noexcept { genotype = std::move(new_genotype); }
 
-        double getFitness() const { return fitness; }
+        [[nodiscard]] double getFitness() const { return fitness; }
         void setFitness(double new_fitness) { fitness = new_fitness; }
 
-        bool operator <(const Individual& other) const {
-            return fitness < other.fitness;
+        auto operator<=>(const Individual& other) const {
+            return fitness <=> other.fitness;
+        }
+
+        bool operator==(const Individual& other) const {
+            return fitness == other.fitness;
         }
 
         friend std::ostream& operator<<(std::ostream& os, const Individual& ind) {
