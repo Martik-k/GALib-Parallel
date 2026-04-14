@@ -50,4 +50,4 @@ namespace galib {
 
 }
 
-#endif // UNIFORM_CROSSOVER_H
+#endif // UNIFORM_CROSSOVER_Hдавай так рідмі потім перепише спочатку 

@@ -5,7 +5,7 @@
 
 #include "core/GridPopulation.h"
 #include "core/FitnessFunction.h"
-#include "operators/selection/LocalSelection.h"
+#include "algorithms/cellular/selection/LocalSelection.h"
 #include "operators/mutation/Mutation.h"
 #include "operators/crossover/Crossover.h"
 
