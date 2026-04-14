@@ -1,0 +1,47 @@
+# Comprehensive YAML Configuration for GALib-Parallel
+# This file contains all possible parameters for all supported algorithms.
+
+algorithm:
+  # Common Parameters
+  type: "island"             # Options: "standard", "cellular", "island", "differential_evolution"
+  pop_size: 100
+  max_generations: 500
+  mutation_rate: 0.05
+  crossover_rate: 0.8        # Used as CR_rate in Differential Evolution
+  use_elitism: true
+
+  # Differential Evolution Specific Parameters
+  differential_evolution:
+    f_weight: 0.8            # Differential weight [0, 2]
+
+  # Cellular GA Specific Parameters
+  cellular:
+    rows: 10
+    cols: 10
+    use_local_elitism: true
+
+  # Island Model Specific Parameters
+  island:
+    topology: "fully_connected" # Options: "fully_connected", "one_way_ring", "bidirectional_ring"
+    migration_interval: 50
+    migration_size: 5
+    immigration_quota: 0.1
+    buffer_capacity: 10
+    
+    # Migration Strategies
+    replacer:
+      type: "worst"          # Options: "worst"
+    selector:
+      type: "elitism"        # Options: "elitism"
+
+  # Genetic Operator Configuration
+  selection:
+    type: "tournament"       # Options: "tournament", "best_neighbor" (for cellular)
+    tournament_size: 3
+  
+  mutation:
+    type: "gaussian"         # Options: "gaussian", "uniform", "boundary"
+    sigma: 0.1               # Only for gaussian
+    
+  crossover:
+    type: "single_point"     # Options: "single_point", "arithmetic", "uniform"

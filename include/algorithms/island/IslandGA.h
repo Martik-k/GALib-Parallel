@@ -13,8 +13,9 @@
 #include "algorithms/island/migration/selectors/DemeSelector.h"
 #include "algorithms/island/communication/buffers/MigrationBuffer.h"
 #include "algorithms/island/communication/communicators/Communicator.h"
+#include "algorithms/island/communication/serializers/Serializer.h"
 #include "algorithms/island/IslandConfig.h"
-#include "topology/Topology.h"
+#include "algorithms/island/topology/Topology.h"
 #include "utils/StateLogger.h"
 
 #include <iostream>
@@ -28,21 +29,23 @@ namespace galib {
     class IslandGA {
     private:
         FitnessFunction<GeneType>& fitness_function_m;
-        Selection<GeneType>& selection_m;
-        Mutation<GeneType>& mutation_m;
-        Crossover<GeneType>& crossover_m;
-        DemeReplacer<GeneType>& deme_replacer_m;
-        DemeSelector<GeneType>& deme_selector_m;
-        MigrationBuffer<GeneType>& migration_buffer_m;
-        Communicator<GeneType>& communicator_m;
-        const Topology& topology_m;
+        
+        std::unique_ptr<Selection<GeneType>> selection_m;
+        std::unique_ptr<Mutation<GeneType>> mutation_m;
+        std::unique_ptr<Crossover<GeneType>> crossover_m;
+        std::unique_ptr<DemeReplacer<GeneType>> deme_replacer_m;
+        std::unique_ptr<DemeSelector<GeneType>> deme_selector_m;
+        
+        std::unique_ptr<MigrationBuffer<GeneType>> migration_buffer_m;
+        std::unique_ptr<Communicator<GeneType>> communicator_m;
+        std::unique_ptr<const Topology> topology_m;
+        std::unique_ptr<Serializer<GeneType>> serializer_m;
 
-        const IslandConfig& config_m;
-
-        utils::StateLogger<GeneType>* logger_m = nullptr;
-
+        const IslandConfig config_m;
+        std::unique_ptr<utils::StateLogger<GeneType>> logger_m;
+        std::size_t log_interval_m = 0;
+        bool verbose_m = false;
         bool use_elitism_m;
-
         const std::size_t max_immigrants_m;
 
         void evaluatePopulation(Population<GeneType>& population) {
@@ -70,11 +73,11 @@ namespace galib {
                 thread_local static std::mt19937_64 tl_gen(tl_rd());
                 thread_local static std::uniform_real_distribution<double> tl_dist(0.0, 1.0);
 
-                const Individual<GeneType>& parent1 = selection_m.select(current_population);
-                const Individual<GeneType>& parent2 = selection_m.select(current_population);
+                const Individual<GeneType>& parent1 = selection_m->select(current_population);
+                const Individual<GeneType>& parent2 = selection_m->select(current_population);
 
                 if (tl_dist(tl_gen) < config_m.crossover_rate) {
-                    auto children = crossover_m.crossover(parent1, parent2);
+                    auto children = crossover_m->crossover(parent1, parent2);
                     new_population[i] = std::move(children.first);
                     if (i + 1 < population_size) {
                         new_population[i + 1] = std::move(children.second);
@@ -86,27 +89,27 @@ namespace galib {
                     }
                 }
 
-                mutation_m.mutate(new_population[i], config_m.mutation_rate);
+                mutation_m->mutate(new_population[i], config_m.mutation_rate);
                 if (i + 1 < population_size) {
-                    mutation_m.mutate(new_population[i + 1], config_m.mutation_rate);
+                    mutation_m->mutate(new_population[i + 1], config_m.mutation_rate);
                 }
             }
         }
 
         void initializeCommunication() {
-            communicator_m.startReceiving(migration_buffer_m);
+            communicator_m->startReceiving(*migration_buffer_m);
         }
 
         void finalizeCommunication() {
-            communicator_m.stopReceiving();
+            communicator_m->stopReceiving();
         }
 
         void handleIncomingMigrants(Population<GeneType>& population) {
-            communicator_m.update();
+            communicator_m->update();
 
             std::vector<Individual<GeneType>> incoming_migrants;
 
-            migration_buffer_m.popAll(incoming_migrants);
+            migration_buffer_m->popAll(incoming_migrants);
             if (incoming_migrants.empty()) return;
 
             if (incoming_migrants.size() > max_immigrants_m) {
@@ -119,21 +122,22 @@ namespace galib {
                 incoming_migrants.resize(max_immigrants_m);
             }
 
-            deme_replacer_m.replaceDeme(population, std::move(incoming_migrants));
+            deme_replacer_m->replaceDeme(population, std::move(incoming_migrants));
         }
 
         void handleOutgoingMigrants(const Population<GeneType>& population, const std::size_t generation_idx) {
             if ((generation_idx + 1) % config_m.migration_interval != 0) return;
 
-            auto outgoing_migrants = deme_selector_m.selectDeme(population, config_m.migration_size);
+            auto outgoing_migrants = deme_selector_m->selectDeme(population, config_m.migration_size);
 
-            const std::vector<std::size_t> neighbors = topology_m.getLinks(communicator_m.getRank()).neighbors_out;
+            const std::vector<std::size_t> neighbors = topology_m->getLinks(communicator_m->getRank()).neighbors_out;
 
-            communicator_m.broadcast(outgoing_migrants, neighbors);
+
+            communicator_m->broadcast(outgoing_migrants, neighbors);
         }
 
         void synchronizeGlobalBest(Population<GeneType>& population) {
-            const Individual<GeneType> global_best = communicator_m.allReduceBest(population.getBestIndividual());
+            const Individual<GeneType> global_best = communicator_m->allReduceBest(population.getBestIndividual());
 
             if (global_best.getFitness() < population.getBestIndividual().getFitness()) {
                 population[0] = std::move(global_best);
@@ -141,7 +145,7 @@ namespace galib {
         }
 
         void logState(const Population<GeneType>& population, const std::size_t generation_idx) const {
-            if (communicator_m.getRank() == 0) {
+            if (verbose_m && communicator_m->getRank() == 0) {
                 std::cout << "Generation " << (generation_idx + 1)
                           << " | Global Best Fitness: " << population.getBestIndividual().getFitness()
                           << std::endl;
@@ -151,22 +155,40 @@ namespace galib {
     public:
         IslandGA(
             FitnessFunction<GeneType>& ff,
-            Selection<GeneType>& sel,
-            Mutation<GeneType>& mu,
-            Crossover<GeneType>& cs,
-            DemeReplacer<GeneType>& replacer,
-            DemeSelector<GeneType>& selector,
-            MigrationBuffer<GeneType>& buffer,
-            Communicator<GeneType>& comm,
-            const Topology& topology,
+            std::unique_ptr<Selection<GeneType>> sel,
+            std::unique_ptr<Mutation<GeneType>> mu,
+            std::unique_ptr<Crossover<GeneType>> cs,
+            std::unique_ptr<DemeReplacer<GeneType>> replacer,
+            std::unique_ptr<DemeSelector<GeneType>> selector,
+            std::unique_ptr<MigrationBuffer<GeneType>> buffer,
+            std::unique_ptr<Communicator<GeneType>> comm,
+            std::unique_ptr<const Topology> topology,
+            std::unique_ptr<Serializer<GeneType>> serializer,
             const IslandConfig& config,
-            const bool elitism = true,
-            utils::StateLogger<GeneType>* logger = nullptr
-        ) : fitness_function_m(ff), selection_m(sel), mutation_m(mu), crossover_m(cs),
-            deme_replacer_m(replacer), deme_selector_m(selector), migration_buffer_m(buffer),
-            communicator_m(comm), topology_m(topology), config_m(config), logger_m(logger),
+            const bool elitism = true
+        ) : fitness_function_m(ff), 
+            selection_m(std::move(sel)), 
+            mutation_m(std::move(mu)), 
+            crossover_m(std::move(cs)),
+            deme_replacer_m(std::move(replacer)), 
+            deme_selector_m(std::move(selector)), 
+            migration_buffer_m(std::move(buffer)),
+            communicator_m(std::move(comm)), 
+            topology_m(std::move(topology)), 
+            serializer_m(std::move(serializer)),
+            config_m(config), 
             use_elitism_m(elitism),
             max_immigrants_m(static_cast<std::size_t>(static_cast<double>(config.population_size) * config.immigration_quota)) {}
+
+        void enableConsoleOutput(bool enabled) {
+            verbose_m = enabled;
+        }
+
+        void enableFileLogging(const std::string& directory, std::size_t interval) {
+            logger_m = std::make_unique<utils::StateLogger<GeneType>>(directory, communicator_m->getRank());
+            log_interval_m = interval;
+        }
+
 
         void run(Population<GeneType>& population) {
             if (population.empty()) { return; }
@@ -180,7 +202,7 @@ namespace galib {
 
             initializeCommunication();
 
-            if (logger_m && config_m.log_interval > 0) {
+            if (logger_m && log_interval_m > 0) {
                 logger_m->writeHeader(num_genes);
                 logger_m->log(population, 0);
             }
@@ -196,7 +218,7 @@ namespace galib {
 
                 handleOutgoingMigrants(population, generation_idx);
 
-                if (logger_m && config_m.log_interval > 0 && (generation_idx + 1) % config_m.log_interval == 0) {
+                if (logger_m && log_interval_m > 0 && (generation_idx + 1) % log_interval_m == 0) {
                     logger_m->log(population, generation_idx + 1);
                 }
 
