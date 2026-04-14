@@ -24,14 +24,16 @@ enum class ProblemId : int {
     Rastrigin = 1
 };
 
-inline ProblemId parseProblem(const std::string& name) {
+inline bool tryParseProblem(const std::string& name, ProblemId& problem) {
     if (name == "Sphere") {
-        return ProblemId::Sphere;
+        problem = ProblemId::Sphere;
+        return true;
     }
     if (name == "Rastrigin") {
-        return ProblemId::Rastrigin;
+        problem = ProblemId::Rastrigin;
+        return true;
     }
-    throw std::invalid_argument("CUDA backend supports only Sphere and Rastrigin.");
+    return false;
 }
 
 inline int divUp(int n, int d) {
@@ -178,21 +180,82 @@ inline bool checkCuda(cudaError_t status, const char* operation) {
     return false;
 }
 
+inline bool evaluatePopulationHost(
+    const double* dPopulation,
+    double* dFitness,
+    int populationSize,
+    int dimensions,
+    const galib::FitnessFunction<double>& fitness_function,
+    std::vector<double>& hPopulation,
+    std::vector<double>& hFitness,
+    const std::size_t genesBytes,
+    const std::size_t fitnessBytes
+) {
+    if (!checkCuda(cudaMemcpy(hPopulation.data(), dPopulation, genesBytes, cudaMemcpyDeviceToHost),
+                   "cudaMemcpy population D2H (host fitness eval)")) {
+        return false;
+    }
+
+    for (int i = 0; i < populationSize; ++i) {
+        const std::size_t base = static_cast<std::size_t>(i) * static_cast<std::size_t>(dimensions);
+        std::vector<double> genotype(static_cast<std::size_t>(dimensions));
+        for (int j = 0; j < dimensions; ++j) {
+            genotype[static_cast<std::size_t>(j)] = hPopulation[base + static_cast<std::size_t>(j)];
+        }
+        hFitness[static_cast<std::size_t>(i)] = fitness_function.evaluate(genotype);
+    }
+
+    if (!checkCuda(cudaMemcpy(dFitness, hFitness.data(), fitnessBytes, cudaMemcpyHostToDevice),
+                   "cudaMemcpy fitness H2D (host fitness eval)")) {
+        return false;
+    }
+
+    return true;
+}
+
 } // namespace
 
 namespace galib {
 namespace cuda {
 
-bool runStandardGACUDA(const utils::Config& config, Population<double>& population) {
-    const int populationSize = static_cast<int>(config.algorithm.pop_size);
-    const int dimensions = static_cast<int>(config.problem.dimensions);
+StandardGACUDA::StandardGACUDA(const StandardGACUDAConfig& config)
+    : config_m(config) {}
+
+StandardGACUDA::StandardGACUDA(const StandardGACUDAConfig& config, const FitnessFunction<double>& fitness_function)
+    : config_m(config), fitness_function_m(&fitness_function) {}
+
+StandardGACUDAConfig StandardGACUDA::fromConfig(const utils::Config& config) {
+    StandardGACUDAConfig cuda_config;
+    cuda_config.population_size = config.algorithm.pop_size;
+    cuda_config.dimensions = config.problem.dimensions;
+    cuda_config.max_generations = config.algorithm.max_generations;
+    cuda_config.mutation_rate = config.algorithm.mutation_rate;
+    cuda_config.crossover_rate = config.algorithm.crossover_rate;
+    cuda_config.tournament_size = config.algorithm.selection.tournament_size;
+    cuda_config.lower_bound = config.problem.lower_bound;
+    cuda_config.upper_bound = config.problem.upper_bound;
+    cuda_config.problem_name = config.problem.name;
+    cuda_config.log_file = config.output.log_file;
+    return cuda_config;
+}
+
+bool StandardGACUDA::run(Population<double>& population) const {
+    const int populationSize = static_cast<int>(config_m.population_size);
+    const int dimensions = static_cast<int>(config_m.dimensions);
 
     if (populationSize <= 0 || dimensions <= 0) {
         std::cerr << "Invalid CUDA GA dimensions or population size." << std::endl;
         return false;
     }
 
-    const ProblemId problem = parseProblem(config.problem.name);
+    ProblemId problem = ProblemId::Sphere;
+    const bool use_device_fitness = tryParseProblem(config_m.problem_name, problem);
+    if (!use_device_fitness && fitness_function_m == nullptr) {
+        std::cerr << "CUDA backend has no device evaluator for '" << config_m.problem_name
+                  << "'. Pass a FitnessFunction to StandardGACUDA to enable generic host fitness evaluation."
+                  << std::endl;
+        return false;
+    }
 
     const std::size_t genesCount = static_cast<std::size_t>(populationSize) * static_cast<std::size_t>(dimensions);
     const std::size_t genesBytes = genesCount * sizeof(double);
@@ -234,8 +297,8 @@ bool runStandardGACUDA(const utils::Config& config, Population<double>& populati
         dPopulation,
         populationSize,
         dimensions,
-        config.problem.lower_bound,
-        config.problem.upper_bound,
+        config_m.lower_bound,
+        config_m.upper_bound,
         dStates);
     if (!checkCuda(cudaGetLastError(), "initPopulation launch") ||
         !checkCuda(cudaDeviceSynchronize(), "initPopulation sync")) {
@@ -247,35 +310,54 @@ bool runStandardGACUDA(const utils::Config& config, Population<double>& populati
     }
 
     std::ofstream log;
-    if (!config.output.log_file.empty()) {
-        std::filesystem::path p(config.output.log_file);
+    if (!config_m.log_file.empty()) {
+        std::filesystem::path p(config_m.log_file);
         if (p.has_parent_path()) {
             std::filesystem::create_directories(p.parent_path());
         }
-        log.open(config.output.log_file);
+        log.open(config_m.log_file);
         if (log.is_open()) {
             log << "generation,individual_idx,x,y\n";
         } else {
-            std::cerr << "Error: Could not open log file " << config.output.log_file << std::endl;
+            std::cerr << "Error: Could not open log file " << config_m.log_file << std::endl;
         }
     }
 
     std::vector<double> hFitness(static_cast<std::size_t>(populationSize));
     std::vector<double> hPopulation;
-    if (log.is_open()) {
+    if (log.is_open() || !use_device_fitness) {
         hPopulation.resize(genesCount);
     }
 
-    for (std::size_t generation = 0; generation < config.algorithm.max_generations; ++generation) {
-        evaluatePopulation<<<divUp(populationSize, kBlockSize), kBlockSize>>>(
-            dPopulation, dFitness, populationSize, dimensions, problem);
-        if (!checkCuda(cudaGetLastError(), "evaluatePopulation launch") ||
-            !checkCuda(cudaDeviceSynchronize(), "evaluatePopulation sync")) {
-            cudaFree(dPopulation);
-            cudaFree(dNextPopulation);
-            cudaFree(dFitness);
-            cudaFree(dStates);
-            return false;
+    for (std::size_t generation = 0; generation < config_m.max_generations; ++generation) {
+        if (use_device_fitness) {
+            evaluatePopulation<<<divUp(populationSize, kBlockSize), kBlockSize>>>(
+                dPopulation, dFitness, populationSize, dimensions, problem);
+            if (!checkCuda(cudaGetLastError(), "evaluatePopulation launch") ||
+                !checkCuda(cudaDeviceSynchronize(), "evaluatePopulation sync")) {
+                cudaFree(dPopulation);
+                cudaFree(dNextPopulation);
+                cudaFree(dFitness);
+                cudaFree(dStates);
+                return false;
+            }
+        } else {
+            if (!evaluatePopulationHost(
+                    dPopulation,
+                    dFitness,
+                    populationSize,
+                    dimensions,
+                    *fitness_function_m,
+                    hPopulation,
+                    hFitness,
+                    genesBytes,
+                    fitnessBytes)) {
+                cudaFree(dPopulation);
+                cudaFree(dNextPopulation);
+                cudaFree(dFitness);
+                cudaFree(dStates);
+                return false;
+            }
         }
 
         if (!checkCuda(cudaMemcpy(hFitness.data(), dFitness, fitnessBytes, cudaMemcpyDeviceToHost),
@@ -314,17 +396,20 @@ bool runStandardGACUDA(const utils::Config& config, Population<double>& populati
             }
         }
 
-        const int elitismOffset = 1;
-        if (!checkCuda(cudaMemcpy(dNextPopulation,
-                                  dPopulation + static_cast<std::size_t>(bestIndex) * dimensions,
-                                  static_cast<std::size_t>(dimensions) * sizeof(double),
-                                  cudaMemcpyDeviceToDevice),
-                       "cudaMemcpy elitism D2D")) {
-            cudaFree(dPopulation);
-            cudaFree(dNextPopulation);
-            cudaFree(dFitness);
-            cudaFree(dStates);
-            return false;
+        int elitismOffset = 0;
+        if (config_m.use_elitism) {
+            elitismOffset = 1;
+            if (!checkCuda(cudaMemcpy(dNextPopulation,
+                                      dPopulation + static_cast<std::size_t>(bestIndex) * dimensions,
+                                      static_cast<std::size_t>(dimensions) * sizeof(double),
+                                      cudaMemcpyDeviceToDevice),
+                           "cudaMemcpy elitism D2D")) {
+                cudaFree(dPopulation);
+                cudaFree(dNextPopulation);
+                cudaFree(dFitness);
+                cudaFree(dStates);
+                return false;
+            }
         }
 
         const int generated = populationSize - elitismOffset;
@@ -336,9 +421,9 @@ bool runStandardGACUDA(const utils::Config& config, Population<double>& populati
             populationSize,
             dimensions,
             elitismOffset,
-            std::max(1, config.algorithm.selection.tournament_size),
-            config.algorithm.crossover_rate,
-            config.algorithm.mutation_rate,
+            std::max(1, config_m.tournament_size),
+            config_m.crossover_rate,
+            config_m.mutation_rate,
             dStates);
 
         if (!checkCuda(cudaGetLastError(), "evolvePopulation launch") ||
@@ -358,15 +443,34 @@ bool runStandardGACUDA(const utils::Config& config, Population<double>& populati
         }
     }
 
-    evaluatePopulation<<<divUp(populationSize, kBlockSize), kBlockSize>>>(
-        dPopulation, dFitness, populationSize, dimensions, problem);
-    if (!checkCuda(cudaGetLastError(), "final evaluatePopulation launch") ||
-        !checkCuda(cudaDeviceSynchronize(), "final evaluatePopulation sync")) {
-        cudaFree(dPopulation);
-        cudaFree(dNextPopulation);
-        cudaFree(dFitness);
-        cudaFree(dStates);
-        return false;
+    if (use_device_fitness) {
+        evaluatePopulation<<<divUp(populationSize, kBlockSize), kBlockSize>>>(
+            dPopulation, dFitness, populationSize, dimensions, problem);
+        if (!checkCuda(cudaGetLastError(), "final evaluatePopulation launch") ||
+            !checkCuda(cudaDeviceSynchronize(), "final evaluatePopulation sync")) {
+            cudaFree(dPopulation);
+            cudaFree(dNextPopulation);
+            cudaFree(dFitness);
+            cudaFree(dStates);
+            return false;
+        }
+    } else {
+        if (!evaluatePopulationHost(
+                dPopulation,
+                dFitness,
+                populationSize,
+                dimensions,
+                *fitness_function_m,
+                hPopulation,
+                hFitness,
+                genesBytes,
+                fitnessBytes)) {
+            cudaFree(dPopulation);
+            cudaFree(dNextPopulation);
+            cudaFree(dFitness);
+            cudaFree(dStates);
+            return false;
+        }
     }
 
     std::vector<double> finalPopulation(genesCount);
@@ -402,6 +506,15 @@ bool runStandardGACUDA(const utils::Config& config, Population<double>& populati
     cudaFree(dStates);
 
     return true;
+}
+
+bool runStandardGACUDA(
+    const utils::Config& config,
+    Population<double>& population,
+    const FitnessFunction<double>& fitness_function
+) {
+    StandardGACUDA ga(StandardGACUDA::fromConfig(config), fitness_function);
+    return ga.run(population);
 }
 
 } // namespace cuda

@@ -4,6 +4,7 @@ ga_example
 *.out
 *.app
 /build/
+/build-cuda/
 /CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake

@@ -45,7 +45,7 @@ if (CMAKE_CUDA_COMPILER)
                 ${CMAKE_CURRENT_SOURCE_DIR}/include
         )
         target_link_libraries(ga_cuda PUBLIC CUDA::cudart)
-        set_target_properties(ga_cuda PROPERTIES CUDA_STANDARD 17)
+        set_target_properties(ga_cuda PROPERTIES CUDA_STANDARD 20 CUDA_STANDARD_REQUIRED ON)
         message(STATUS "CUDA toolkit found, ga_cuda backend enabled")
     endif ()
 endif ()
