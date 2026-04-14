@@ -9,6 +9,12 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile
 
+# === Logs ===
+log
+logs
+island_logs
+island-logs
+
 # === IDE & Editor Specific ===
 .vscode/
 .history/

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 
 namespace galib {
     struct IslandConfig {
@@ -18,6 +19,10 @@ namespace galib {
         std::size_t migration_size = 5;
         double immigration_quota = 0.1;
         std::size_t buffer_capacity = 5;
+
+        // Logging Parameters
+        std::string log_directory = "logs";
+        std::size_t log_interval = 0; // 0 means disabled
     };
 }
 
