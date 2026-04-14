@@ -8,7 +8,7 @@
 #include "algorithms/island/communication/buffers/CircularBuffer.h"
 #include "algorithms/island/migration/replacers/WorstReplacer.h"
 #include "algorithms/island/migration/selectors/ElitismSelector.h"
-#include "topology/OneWayRingTopology.h"
+#include "algorithms/island/topology/FullyConnectedTopology.h"
 
 #include "operators/selection/TournamentSelection.h"
 #include "operators/crossover/SinglePointCrossover.h"
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
         CircularBuffer<double> buffer(config.buffer_capacity, config.migration_size);
         WorstReplacer<double> replacer;
         ElitismSelector<double> selector;
-        const OneWayRingTopology topology(communicator.getSize());
+        const FullyConnectedTopology topology(communicator.getSize());
 
         // 3. Initialize Algorithm
         IslandGA<double> island_ga(

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "topology/Topology.h"
+#include "algorithms/island/topology/Topology.h"
 
 namespace galib {
 
