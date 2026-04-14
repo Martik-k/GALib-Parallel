@@ -13,9 +13,9 @@
 #include "core/Individual.h"
 #include "core/Population.h"
 #include "core/FitnessFunction.h"
-#include "algorithms/standart/StandartGA.h"
+#include "algorithms/standard/StandardGA.h"
 #include "algorithms/StandardGACUDA.h"
-#include "algorithms/DifferentialEvolutionGA.h"
+#include "algorithms/differential-evolution/DifferentialEvolutionGA.h"
 
 #include "operators/selection/TournamentSelection.h"
 #include "operators/crossover/SinglePointCrossover.h"
