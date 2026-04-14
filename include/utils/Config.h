@@ -16,15 +16,24 @@ namespace galib {
             } problem;
 
             struct Algorithm {
+                std::string type;
                 std::size_t pop_size;
                 std::size_t max_generations;
                 double mutation_rate;
                 double crossover_rate;
+                std::string backend;
 
                 struct Selection {
                     std::string type;
+                    std::string scope;
                     int tournament_size;
                 } selection;
+
+                struct Cellular {
+                std::size_t rows;
+                    std::size_t cols;
+                    bool use_local_elitism;
+                } cellular;
             } algorithm;
 
             struct Output {

@@ -28,11 +28,15 @@ with open(CONFIG_PATH, 'r') as f:
     config = yaml.safe_load(f)
 
 prob_cfg = config['problem']
+alg_cfg = config['algorithm']
+cell_cfg = alg_cfg.get('cellular', {})
 out_cfg = config['output']
 
 name = prob_cfg['name']
 lb = prob_cfg['lower_bound']
 ub = prob_cfg['upper_bound']
+rows = cell_cfg.get('rows', 0)
+cols = cell_cfg.get('cols', 0)
 log_filename = out_cfg['log_file']
 
 CSV_PATH = os.path.join(PROJECT_ROOT, 'build', log_filename)
@@ -77,7 +81,8 @@ ax2d.grid(True, color='gray', linestyle='--', alpha=0.3)
 
 def update(gen):
     curr = data[data['generation'] == gen]
-    if curr.empty: return scatter3d, scatter2d
+    if curr.empty:
+        return scatter3d, scatter2d
 
     xs, ys = curr['x'].values, curr['y'].values
     zs = target_func(xs, ys)
@@ -85,7 +90,10 @@ def update(gen):
     scatter3d._offsets3d = (xs, ys, zs)
     scatter2d.set_offsets(np.c_[xs, ys])
 
-    fig.suptitle(f"RCGA Evolution: {name}\nGeneration: {gen} | Bounds: [{lb}, {ub}]", fontsize=16)
+    fig.suptitle(
+        f"Cellular GA Evolution: {name}\nGeneration: {gen} | Grid: {rows}x{cols} | Bounds: [{lb}, {ub}]",
+        fontsize=16
+    )
     return scatter3d, scatter2d
 
 total_frames = int(data['generation'].max()) + 1
@@ -97,13 +105,13 @@ ANI_DIR = os.path.join(PROJECT_ROOT, 'visualizations', 'animations')
 os.makedirs(IMG_DIR, exist_ok=True)
 os.makedirs(ANI_DIR, exist_ok=True)
 
-photo_path = os.path.join(IMG_DIR, f'plot_{name.lower()}.png')
+photo_path = os.path.join(IMG_DIR, f'plot_{name.lower()}_cellular.png')
 print(f"Static plot saved for report: {photo_path}")
 
-mp4_path = os.path.join(ANI_DIR, f'evolution_{name.lower()}.mp4')
-gif_path = os.path.join(ANI_DIR, f'evolution_{name.lower()}.gif')
+mp4_path = os.path.join(ANI_DIR, f'evolution_{name.lower()}_cellular.mp4')
+gif_path = os.path.join(ANI_DIR, f'evolution_{name.lower()}_cellular.gif')
 
-print(f"Saving animations for {name} to {ANI_DIR}...")
+print(f"Saving cellular animations for {name} to {ANI_DIR}...")
 
 try:
     ani.save(mp4_path, writer='ffmpeg', fps=10, dpi=150)
@@ -117,7 +125,7 @@ try:
 except Exception as e:
     print(f"Error saving GIF: {e}")
 
-print(f"Running visualization for: {name}")
+print(f"Running cellular visualization for: {name}")
 print(f"Using config: {CONFIG_PATH}")
 fig.savefig(photo_path, dpi=150, bbox_inches='tight')
 print(f"Successfully saved static plot: {photo_path}")
