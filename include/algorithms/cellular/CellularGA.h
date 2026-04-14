@@ -176,6 +176,8 @@ public:
 
             std::swap(population, new_population);
 
+           
+
             if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
                 std::cout << "Generation " << (generation_idx + 1)
                         << " | Best Fitness: " << population.getBestIndividual().getFitness()
@@ -187,7 +189,7 @@ public:
             log.close();
         }
     }
-};
+    };
 
 } // namespace galib
 

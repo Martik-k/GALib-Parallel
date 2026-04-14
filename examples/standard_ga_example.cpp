@@ -13,9 +13,9 @@
 #include "core/Individual.h"
 #include "core/Population.h"
 #include "core/FitnessFunction.h"
-#include "algorithms/standart/StandartGA.h"
+#include "algorithms/standard/StandardGA.h"
 #include "algorithms/StandardGACUDA.h"
-#include "algorithms/DifferentialEvolutionGA.h"
+#include "algorithms/differential-evolution/DifferentialEvolutionGA.h"
 
 #include "operators/selection/TournamentSelection.h"
 #include "operators/crossover/SinglePointCrossover.h"
@@ -44,6 +44,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Backend:         " << config.algorithm.backend << std::endl;
         std::cout << "-----------------------------------------------" << std::endl;
 
+        auto fitness_fn = utils::FitnessFactory::create(config.problem);
         Population<double> population(config.algorithm.pop_size, config.problem.dimensions);
 
         const bool use_cuda =
@@ -52,7 +53,12 @@ int main(int argc, char* argv[]) {
         if (use_cuda) {
 #if defined(GALIB_WITH_CUDA)
             std::cout << "Starting evolution on CUDA backend...\n" << std::endl;
-            if (!cuda::runStandardGACUDA(config, population)) {
+
+            const cuda::StandardGACUDAConfig cuda_config =
+                cuda::StandardGACUDA::fromConfig(config);
+            const cuda::StandardGACUDA cuda_ga(cuda_config, *fitness_fn);
+
+            if (!cuda_ga.run(population)) {
                 throw std::runtime_error("CUDA GA execution failed.");
             }
 #else
@@ -60,7 +66,6 @@ int main(int argc, char* argv[]) {
                 "Config requested CUDA backend, but project was built without CUDA support.");
 #endif
         } else {
-            auto fitness_fn = utils::FitnessFactory::create(config.problem);
             population.initialize(fitness_fn->getLowerBound(), fitness_fn->getUpperBound());
 
             if (config.algorithm.backend == "DE" || config.algorithm.backend == "OpenMP_DE") {
