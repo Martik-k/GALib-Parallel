@@ -153,6 +153,13 @@ namespace galib {
             return individuals;
         }
 
+        [[nodiscard]] std::size_t getSerializedSize(const std::size_t individuals_count, const std::size_t genes_count) const override {
+            if (individuals_count == 0) return 0;
+
+            const auto genotype_size_bytes = sizeof(GeneType) * genes_count;
+            return (sizeof(std::uint32_t) * 2) + (individuals_count * (sizeof(double) + genotype_size_bytes));
+        }
+
     private:
         template <typename T>
         static void appendSerialize(std::vector<uint8_t>& buffer, T value) {

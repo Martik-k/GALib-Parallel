@@ -10,21 +10,18 @@
 #include <cstdint>
 
 namespace galib {
-    /**
-     * @brief MPI-based implementation of the Communicator.
-     * 
-     * Uses non-blocking MPI primitives to enable asynchronous 
-     * migration between processes.
-     */
     template <typename GeneType>
     class MpiCommunicator : public Communicator<GeneType> {
     private:
         static constexpr int MPI_MESSAGE_TAG = 99;
 
+        static constexpr std::size_t RECEIVE_BUFFER_OVERHEAD = 1024;
+
         Serializer<GeneType>& serializer_m;
         std::vector<uint8_t> receive_buffer_m;
         MigrationBuffer<GeneType>* migration_buffer_m = nullptr;
 
+        MPI_Comm comm_m;
         int rank_m;
         std::size_t network_size_m;
 
@@ -32,13 +29,22 @@ namespace galib {
         MPI_Request mpi_request_m = MPI_REQUEST_NULL;
 
     public:
-        explicit MpiCommunicator(Serializer<GeneType>& serializer, const std::size_t receive_buffer_size)
-            : serializer_m(serializer), receive_buffer_m(receive_buffer_size) {
+        explicit MpiCommunicator(Serializer<GeneType>& serializer,
+                                 const std::size_t max_payload_size,
+                                 MPI_Comm comm = MPI_COMM_WORLD)
+            : serializer_m(serializer), comm_m(comm) {
+            int initialized;
+            MPI_Initialized(&initialized);
+            if (!initialized) {
+                throw std::runtime_error("MPI must be initialized before creating MpiCommunicator");
+            }
+
+            receive_buffer_m.resize(max_payload_size + RECEIVE_BUFFER_OVERHEAD);
+
             int rank;
             int network_size;
-
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-            MPI_Comm_size(MPI_COMM_WORLD, &network_size);
+            MPI_Comm_rank(comm_m, &rank);
+            MPI_Comm_size(comm_m, &network_size);
 
             rank_m = rank;
             network_size_m = static_cast<std::size_t>(network_size);
@@ -59,7 +65,7 @@ namespace galib {
                 MPI_BYTE,
                 MPI_ANY_SOURCE,
                 MPI_MESSAGE_TAG,
-                MPI_COMM_WORLD,
+                comm_m,
                 &mpi_request_m
             );
 
@@ -103,7 +109,7 @@ namespace galib {
                     MPI_BYTE,
                     MPI_ANY_SOURCE,
                     MPI_MESSAGE_TAG,
-                    MPI_COMM_WORLD,
+                    comm_m,
                     &mpi_request_m
                 );
             }
@@ -133,7 +139,7 @@ namespace galib {
                 MPI_BYTE,
                 static_cast<int>(destination_rank),
                 MPI_MESSAGE_TAG,
-                MPI_COMM_WORLD
+                comm_m
             );
         }
 
@@ -150,8 +156,9 @@ namespace galib {
                     MPI_BYTE,
                     static_cast<int>(destination_rank),
                     MPI_MESSAGE_TAG,
-                    MPI_COMM_WORLD
-                );            }
+                    comm_m
+                );
+            }
         }
 
         Individual<GeneType> allReduceBest(Individual<GeneType> individual) const override {
@@ -169,7 +176,7 @@ namespace galib {
                 1,
                 MPI_DOUBLE_INT,
                 MPI_MINLOC,
-                MPI_COMM_WORLD
+                comm_m
             );
 
             std::vector<std::uint8_t> buffer;
@@ -185,7 +192,7 @@ namespace galib {
                 1,
                 MPI_INT,
                 global_best.rank,
-                MPI_COMM_WORLD
+                comm_m
             );
 
             if (buffer_size > 0) {
@@ -198,7 +205,7 @@ namespace galib {
                     buffer_size,
                     MPI_BYTE,
                     global_best.rank,
-                    MPI_COMM_WORLD
+                    comm_m
                 );
             }
 
