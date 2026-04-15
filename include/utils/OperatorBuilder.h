@@ -10,7 +10,8 @@
 
 #include "operators/selection/Selection.h"
 #include "operators/selection/TournamentSelection.h"
-
+#include "algorithms/cellular/selection/LocalSelection.h"
+#include "algorithms/cellular/selection/BestNeighborSelection.h"
 #include "operators/mutation/Mutation.h"
 #include "operators/mutation/GaussianMutation.h"
 #include "operators/mutation/UniformMutation.h"

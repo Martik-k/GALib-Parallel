@@ -114,7 +114,16 @@ namespace galib::utils {
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
 
-            return nullptr; 
+            return std::make_unique<CellularGA<GeneType>>(
+                ff,
+                std::move(selection),
+                std::move(mutation),
+                std::move(crossover),
+                params.mutation_rate,
+                params.crossover_rate,
+                params.max_generations,
+                params.use_local_elitism
+            );
         }
 
         /**

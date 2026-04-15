@@ -13,6 +13,7 @@
 #include <tbb/blocked_range.h>
 
 #include <iostream>
+#include <memory>
 #include <random>
 #include <utility>
 #include <fstream>
@@ -25,9 +26,9 @@ template <typename GeneType = double>
 class CellularGA {
 private:
     FitnessFunction<GeneType>& fitness_function_m;
-    LocalSelection<GeneType>& local_selection_m;
-    Mutation<GeneType>& mutation_m;
-    Crossover<GeneType>& crossover_m;
+    std::unique_ptr<LocalSelection<GeneType>> local_selection_m;
+    std::unique_ptr<Mutation<GeneType>> mutation_m;
+    std::unique_ptr<Crossover<GeneType>> crossover_m;
 
     double mutation_rate_m;
     double crossover_rate_m;
@@ -60,13 +61,13 @@ private:
         thread_local static std::uniform_real_distribution<double> dist(0.0, 1.0);
 
         const Individual<GeneType>& current = population.at(row, col);
-        const Individual<GeneType>& neighbor = local_selection_m.select(population, row, col);
+        const Individual<GeneType>& neighbor = local_selection_m->select(population, row, col);
 
         Individual<GeneType> child1;
         Individual<GeneType> child2;
 
         if (dist(gen) < crossover_rate_m) {
-            auto children = crossover_m.crossover(current, neighbor);
+            auto children = crossover_m->crossover(current, neighbor);
             child1 = std::move(children.first);
             child2 = std::move(children.second);
         } else {
@@ -74,8 +75,8 @@ private:
             child2 = neighbor;
         }
 
-        mutation_m.mutate(child1, mutation_rate_m);
-        mutation_m.mutate(child2, mutation_rate_m);
+        mutation_m->mutate(child1, mutation_rate_m);
+        mutation_m->mutate(child2, mutation_rate_m);
 
         child1.setFitness(fitness_function_m.evaluate(child1.getGenotype()));
         child2.setFitness(fitness_function_m.evaluate(child2.getGenotype()));
@@ -99,18 +100,18 @@ private:
 public:
     CellularGA(
         FitnessFunction<GeneType>& ff,
-        LocalSelection<GeneType>& local_sel,
-        Mutation<GeneType>& mu,
-        Crossover<GeneType>& cs,
+        std::unique_ptr<LocalSelection<GeneType>> local_sel,
+        std::unique_ptr<Mutation<GeneType>> mu,
+        std::unique_ptr<Crossover<GeneType>> cs,
         double m_rate,
         double c_rate,
         std::size_t max_gen,
         bool elitism = false
     )
         : fitness_function_m(ff),
-          local_selection_m(local_sel),
-          mutation_m(mu),
-          crossover_m(cs),
+          local_selection_m(std::move(local_sel)),
+          mutation_m(std::move(mu)),
+          crossover_m(std::move(cs)),
           mutation_rate_m(m_rate),
           crossover_rate_m(c_rate),
           max_generations_m(max_gen),
