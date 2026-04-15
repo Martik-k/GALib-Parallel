@@ -47,6 +47,11 @@ namespace galib::utils {
             params.max_generations = node["max_generations"].as<std::size_t>(100);
             params.use_elitism = node["use_elitism"].as<bool>(true);
 
+            bool use_cuda = false;
+            if (node["standard"]) {
+                use_cuda = node["standard"]["use_cuda"].as<bool>(false);
+            }
+
             auto selection = OperatorBuilder<GeneType>::buildSelection(node["selection"]);
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
