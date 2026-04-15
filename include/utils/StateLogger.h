@@ -56,7 +56,7 @@ namespace galib {
             void writeHeader(const std::size_t num_genes) {
                 if (!is_opened_m) return;
 
-                log_file_m << "generation,individual_id,fitness";
+                log_file_m << "generation,individual_id,fitness,source_rank";
                 for (std::size_t i = 0; i < num_genes; ++i) {
                     log_file_m << ",gene_" << i;
                 }
@@ -68,7 +68,7 @@ namespace galib {
 
                 for (std::size_t i = 0; i < population.size(); ++i) {
                     const auto& individual = population[i];
-                    log_file_m << generation_idx << "," << i << "," << individual.getFitness();
+                    log_file_m << generation_idx << "," << i << "," << individual.getFitness() << "," << rank_m;
 
                     const auto& genotype = individual.getGenotype();
                     for (const auto& gene : genotype) {
