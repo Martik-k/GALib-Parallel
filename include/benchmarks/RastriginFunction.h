@@ -19,8 +19,8 @@
 #include <cstddef>
 #include <numbers>
 
-namespace galib {
-    namespace benchmark {
+namespace galib::benchmark {
+
         template <typename GeneType = double>
         class RastriginFunction : public FitnessFunction<GeneType> {
         private:
@@ -57,7 +57,6 @@ namespace galib {
             }
         };
 
-    }
 }
 
 #endif // RASTRIGIN_FUNCTION_H

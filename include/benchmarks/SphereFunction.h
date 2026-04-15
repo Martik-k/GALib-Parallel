@@ -14,16 +14,16 @@
 #include "core/FitnessFunction.h"
 #include <vector>
 
-namespace galib {
-    namespace benchmark {
-        template <typename GeneType = double>
+namespace galib::benchmark {
+
+    template <typename GeneType = double>
         class SphereFunction : public FitnessFunction<GeneType> {
         private:
             std::size_t dimensions;
             GeneType lower_bound;
             GeneType upper_bound;
         public:
-            explicit SphereFunction(std::size_t dim, GeneType lb, GeneType ub)
+            explicit SphereFunction(const std::size_t dim, GeneType lb, GeneType ub)
                 : dimensions(dim), lower_bound(lb), upper_bound(ub) {}
 
             double evaluate(const std::vector<GeneType>& phenotype) const override {
@@ -39,7 +39,7 @@ namespace galib {
             GeneType getLowerBound(std::size_t) const override { return lower_bound; }
             GeneType getUpperBound(std::size_t) const override { return upper_bound; }
         };
-    }
+
 }
 
 #endif // SPHERE_FUNCTION_H
