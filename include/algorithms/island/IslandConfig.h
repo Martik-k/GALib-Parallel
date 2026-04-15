@@ -8,7 +8,6 @@
 namespace galib {
     struct IslandConfig {
         // Standard GA Parameters (relevant for the sub-population)
-        std::size_t population_size = 100;
         std::size_t max_generations = 1000;
         double mutation_rate = 0.05;
         double crossover_rate = 0.8;

@@ -42,11 +42,13 @@ namespace galib {
         std::unique_ptr<Serializer<GeneType>> serializer_m;
 
         const IslandConfig config_m;
+
         std::unique_ptr<utils::StateLogger<GeneType>> logger_m;
         std::size_t log_interval_m = 0;
         bool verbose_m = false;
+        std::size_t console_log_interval_m = 0;
+
         bool use_elitism_m;
-        const std::size_t max_immigrants_m;
 
         void evaluatePopulation(Population<GeneType>& population) {
             const std::size_t population_size = population.size();
@@ -112,14 +114,18 @@ namespace galib {
             migration_buffer_m->popAll(incoming_migrants);
             if (incoming_migrants.empty()) return;
 
-            if (incoming_migrants.size() > max_immigrants_m) {
+            const std::size_t max_immigrants = static_cast<std::size_t>(
+                static_cast<double>(population.size()) * config_m.immigration_quota
+            );
+
+            if (incoming_migrants.size() > max_immigrants) {
                 std::ranges::nth_element(
                     incoming_migrants,
-                    incoming_migrants.begin() + max_immigrants_m,
+                    incoming_migrants.begin() + max_immigrants,
                     std::less{}
                 );
 
-                incoming_migrants.resize(max_immigrants_m);
+                incoming_migrants.resize(max_immigrants);
             }
 
             deme_replacer_m->replaceDeme(population, std::move(incoming_migrants));
@@ -177,18 +183,17 @@ namespace galib {
             topology_m(std::move(topology)), 
             serializer_m(std::move(serializer)),
             config_m(config), 
-            use_elitism_m(elitism),
-            max_immigrants_m(static_cast<std::size_t>(static_cast<double>(config.population_size) * config.immigration_quota)) {}
+            use_elitism_m(elitism) {}
 
-        void enableConsoleOutput(bool enabled) {
+        void enableConsoleOutput(const bool enabled, const std::size_t interval) {
             verbose_m = enabled;
+            console_log_interval_m = interval;
         }
 
-        void enableFileLogging(const std::string& directory, std::size_t interval) {
+        void enableFileLogging(const std::string& directory, const std::size_t interval) {
             logger_m = std::make_unique<utils::StateLogger<GeneType>>(directory, communicator_m->getRank());
             log_interval_m = interval;
         }
-
 
         void run(Population<GeneType>& population) {
             if (population.empty()) { return; }
@@ -222,8 +227,7 @@ namespace galib {
                     logger_m->log(population, generation_idx + 1);
                 }
 
-                if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
-                    synchronizeGlobalBest(population);
+                if ((generation_idx + 1) % console_log_interval_m == 0 || generation_idx == 0) {
                     logState(population, generation_idx);
                 }
             }
@@ -231,7 +235,6 @@ namespace galib {
             finalizeCommunication();
 
             synchronizeGlobalBest(population);
-            logState(population, config_m.max_generations - 1);
         }
     };
 }

@@ -110,7 +110,6 @@ namespace galib::utils {
         ) {
             const auto node = config["algorithm"];
             IslandConfig island_config;
-            island_config.population_size = node["pop_size"].as<std::size_t>(100);
             island_config.max_generations = node["max_generations"].as<std::size_t>(1000);
             island_config.mutation_rate = node["mutation_rate"].as<double>(0.05);
             island_config.crossover_rate = node["crossover_rate"].as<double>(0.8);
