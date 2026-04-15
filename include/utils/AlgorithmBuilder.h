@@ -32,6 +32,38 @@ namespace galib::utils {
 
     template <typename GeneType>
     class AlgorithmBuilder {
+    private:
+        struct Defaults {
+            static constexpr double MUTATION_RATE = 0.05;
+            static constexpr double CROSSOVER_RATE = 0.8;
+            static constexpr std::size_t MAX_GENERATIONS = 100;
+            static constexpr bool USE_ELITISM = true;
+
+            struct Standard {
+                static constexpr bool USE_CUDA = false;
+            };
+
+            struct Cellular {
+                static constexpr std::size_t ROWS = 10;
+                static constexpr std::size_t COLS = 10;
+                static constexpr bool USE_LOCAL_ELITISM = true;
+            };
+
+            struct DE {
+                static constexpr double F_WEIGHT = 0.8;
+                static constexpr double CR_RATE = 0.9;
+            };
+
+            struct Island {
+                static constexpr std::size_t MAX_GENERATIONS = 1000;
+                static constexpr std::size_t MIGRATION_INTERVAL = 50;
+                static constexpr std::size_t MIGRATION_SIZE = 5;
+                static constexpr double IMMIGRATION_QUOTA = 0.1;
+                static constexpr std::size_t BUFFER_CAPACITY = 10;
+                static constexpr const char* TOPOLOGY = "fully_connected";
+            };
+        };
+
     public:
         /**
          * @brief Builds a StandardGA instance from the root configuration.
@@ -42,14 +74,14 @@ namespace galib::utils {
         ) {
             const auto node = config["algorithm"];
             StandardGAParams params;
-            params.mutation_rate = node["mutation_rate"].as<double>(0.05);
-            params.crossover_rate = node["crossover_rate"].as<double>(0.8);
-            params.max_generations = node["max_generations"].as<std::size_t>(100);
-            params.use_elitism = node["use_elitism"].as<bool>(true);
+            params.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
+            params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
+            params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
+            params.use_elitism = node["use_elitism"].as<bool>(Defaults::USE_ELITISM);
 
-            bool use_cuda = false;
+            bool use_cuda = Defaults::Standard::USE_CUDA;
             if (node["standard"]) {
-                use_cuda = node["standard"]["use_cuda"].as<bool>(false);
+                use_cuda = node["standard"]["use_cuda"].as<bool>(Defaults::Standard::USE_CUDA);
             }
 
             auto selection = OperatorBuilder<GeneType>::buildSelection(node["selection"]);
@@ -68,14 +100,14 @@ namespace galib::utils {
         ) {
             const auto node = config["algorithm"];
             CellularGAParams params;
-            params.mutation_rate = node["mutation_rate"].as<double>(0.05);
-            params.crossover_rate = node["crossover_rate"].as<double>(0.8);
-            params.max_generations = node["max_generations"].as<std::size_t>(100);
+            params.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
+            params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
+            params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
             
             if (node["cellular"]) {
-                params.rows = node["cellular"]["rows"].as<std::size_t>(10);
-                params.cols = node["cellular"]["cols"].as<std::size_t>(10);
-                params.use_local_elitism = node["cellular"]["use_local_elitism"].as<bool>(true);
+                params.rows = node["cellular"]["rows"].as<std::size_t>(Defaults::Cellular::ROWS);
+                params.cols = node["cellular"]["cols"].as<std::size_t>(Defaults::Cellular::COLS);
+                params.use_local_elitism = node["cellular"]["use_local_elitism"].as<bool>(Defaults::Cellular::USE_LOCAL_ELITISM);
             }
 
             auto selection = OperatorBuilder<GeneType>::buildLocalSelection(node["selection"]);
@@ -94,11 +126,11 @@ namespace galib::utils {
         ) {
             const auto node = config["algorithm"];
             DEParams params;
-            params.cr_rate = node["crossover_rate"].as<double>(0.9);
-            params.max_generations = node["max_generations"].as<std::size_t>(100);
+            params.cr_rate = node["crossover_rate"].as<double>(Defaults::DE::CR_RATE);
+            params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
 
             if (node["differential_evolution"]) {
-                params.f_weight = node["differential_evolution"]["f_weight"].as<double>(0.8);
+                params.f_weight = node["differential_evolution"]["f_weight"].as<double>(Defaults::DE::F_WEIGHT);
             }
 
             return nullptr; 
@@ -115,19 +147,19 @@ namespace galib::utils {
         ) {
             const auto node = config["algorithm"];
             IslandConfig island_config;
-            island_config.max_generations = node["max_generations"].as<std::size_t>(1000);
-            island_config.mutation_rate = node["mutation_rate"].as<double>(0.05);
-            island_config.crossover_rate = node["crossover_rate"].as<double>(0.8);
+            island_config.max_generations = node["max_generations"].as<std::size_t>(Defaults::Island::MAX_GENERATIONS);
+            island_config.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
+            island_config.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
 
-            std::size_t buffer_capacity = 10;
-            std::string topology_type = "fully_connected";
+            std::size_t buffer_capacity = Defaults::Island::BUFFER_CAPACITY;
+            std::string topology_type = Defaults::Island::TOPOLOGY;
 
             if (node["island"]) {
-                island_config.migration_interval = node["island"]["migration_interval"].as<std::size_t>(50);
-                island_config.migration_size = node["island"]["migration_size"].as<std::size_t>(5);
-                island_config.immigration_quota = node["island"]["immigration_quota"].as<double>(0.1);
-                buffer_capacity = node["island"]["buffer_capacity"].as<std::size_t>(10);
-                topology_type = node["island"]["topology"].as<std::string>("fully_connected");
+                island_config.migration_interval = node["island"]["migration_interval"].as<std::size_t>(Defaults::Island::MIGRATION_INTERVAL);
+                island_config.migration_size = node["island"]["migration_size"].as<std::size_t>(Defaults::Island::MIGRATION_SIZE);
+                island_config.immigration_quota = node["island"]["immigration_quota"].as<double>(Defaults::Island::IMMIGRATION_QUOTA);
+                buffer_capacity = node["island"]["buffer_capacity"].as<std::size_t>(Defaults::Island::BUFFER_CAPACITY);
+                topology_type = node["island"]["topology"].as<std::string>(Defaults::Island::TOPOLOGY);
             }
 
             // 1. Setup Genetic Operators
