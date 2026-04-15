@@ -10,16 +10,19 @@
 
 #include "operators/selection/Selection.h"
 #include "operators/selection/TournamentSelection.h"
-#include "operators/selection/LocalSelection.h"
-#include "operators/selection/BestNeighborSelection.h"
+
 #include "operators/mutation/Mutation.h"
 #include "operators/mutation/GaussianMutation.h"
 #include "operators/mutation/UniformMutation.h"
 #include "operators/mutation/BoundaryMutation.h"
+
 #include "operators/crossover/Crossover.h"
 #include "operators/crossover/ArithmeticCrossover.h"
 #include "operators/crossover/SinglePointCrossover.h"
 #include "operators/crossover/UniformCrossover.h"
+
+#include "algorithms/cellular/selection/LocalSelection.h"
+#include "algorithms/cellular/selection/BestNeighborSelection.h"
 
 #include "algorithms/island/migration/replacers/DemeReplacer.h"
 #include "algorithms/island/migration/replacers/WorstReplacer.h"

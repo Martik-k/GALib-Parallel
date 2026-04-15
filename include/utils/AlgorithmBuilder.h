@@ -7,6 +7,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include "utils/OperatorBuilder.h"
+
 #include "algorithms/standard/StandardGA.h"
 #include "algorithms/standard/StandardGAParams.h"
 #include "algorithms/cellular/CellularGA.h"
@@ -15,9 +16,9 @@
 #include "algorithms/differential-evolution/DEParams.h"
 #include "algorithms/island/IslandGA.h"
 #include "algorithms/island/IslandConfig.h"
+
 #include "core/FitnessFunction.h"
-#include "algorithms/island/communication/buffers/MigrationBuffer.h"
-#include "algorithms/island/communication/communicators/Communicator.h"
+
 #include "algorithms/island/topology/Topology.h"
 #include "algorithms/island/topology/FullyConnectedTopology.h"
 #include "algorithms/island/topology/OneWayRingTopology.h"
