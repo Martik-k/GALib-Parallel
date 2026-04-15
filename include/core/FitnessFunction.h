@@ -14,11 +14,14 @@ namespace galib {
         virtual ~FitnessFunction() = default;
 
         virtual double evaluate(const std::vector<GeneType>& phenotype) const = 0;
+
         [[nodiscard]] virtual std::size_t size() const = 0;
+
         virtual GeneType getLowerBound(std::size_t dimension) const = 0;
 		GeneType getLowerBound() const {
     		return getLowerBound(0); 
 		}
+        
         virtual GeneType getUpperBound(std::size_t dimension) const = 0;
         GeneType getUpperBound() const {
     		return getUpperBound(0);
