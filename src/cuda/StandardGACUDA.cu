@@ -17,6 +17,7 @@
 namespace {
 
 constexpr int kBlockSize = 256;
+using Scalar = float;
 
 enum class ProblemId : int {
     Sphere    = 0,
@@ -35,47 +36,47 @@ inline int divUp(int n, int d) { return (n + d - 1) / d; }
 
 // ── Device fitness evaluation ────────────────────────────────────────────────
 
-__device__ inline double evaluateIndividual(const double* genes, int dimensions, ProblemId problem) {
+__device__ inline Scalar evaluateIndividual(const Scalar* genes, int dimensions, ProblemId problem) {
     if (problem == ProblemId::Sphere) {
-        double sum = 0.0;
+        Scalar sum = 0.0f;
         for (int j = 0; j < dimensions; ++j) {
-            const double x = genes[j];
+            const Scalar x = genes[j];
             sum += x * x;
         }
         return sum;
     }
 
     if (problem == ProblemId::Rastrigin) {
-        constexpr double A  = 10.0;
-        constexpr double PI = 3.14159265358979323846;
-        double sum = A * static_cast<double>(dimensions);
+        constexpr Scalar A  = 10.0f;
+        constexpr Scalar PI = 3.14159265358979323846f;
+        Scalar sum = A * static_cast<Scalar>(dimensions);
         for (int j = 0; j < dimensions; ++j) {
-            const double x = genes[j];
-            sum += x * x - A * cos(2.0 * PI * x);
+            const Scalar x = genes[j];
+            sum += x * x - A * cosf(2.0f * PI * x);
         }
         return sum;
     }
 
     if (problem == ProblemId::HeavyTrig) {
         constexpr std::size_t repeat_count = 64;
-        double sum = 0.0;
+        Scalar sum = 0.0f;
         for (int j = 0; j < dimensions; ++j) {
-            const double x = genes[j];
-            double state = x;
+            const Scalar x = genes[j];
+            Scalar state = x;
             for (std::size_t r = 1; r <= repeat_count; ++r) {
-                const double factor = static_cast<double>(r);
-                const double angle = factor * 0.017 + x * 0.031;
-                state = sin(state + angle)
-                      + cos(state - angle * 0.5)
-                      + exp(-0.001 * state * state)
-                      + 0.0005 * state * state;
+                const Scalar factor = static_cast<Scalar>(r);
+                const Scalar angle = factor * 0.017f + x * 0.031f;
+                state = sinf(state + angle)
+                      + cosf(state - angle * 0.5f)
+                      + expf(-0.001f * state * state)
+                      + 0.0005f * state * state;
             }
-            sum += state * state + 0.1 * x * x;
+            sum += state * state + 0.1f * x * x;
         }
         return sum;
     }
 
-    return 0.0;
+    return 0.0f;
 }
 
 // ── Stateless RNG (splitmix64 hash) ─────────────────────────────────────────
@@ -94,33 +95,33 @@ __device__ inline std::uint64_t splitmix64(std::uint64_t x) {
 }
 
 // Returns a uniform double in [0, 1).
-__device__ inline double uniformHash(std::uint64_t seed) {
-    return static_cast<double>(splitmix64(seed) >> 11) * (1.0 / static_cast<double>(1ULL << 53));
+__device__ inline Scalar uniformHash(std::uint64_t seed) {
+    return static_cast<Scalar>(static_cast<double>(splitmix64(seed) >> 11) * (1.0 / static_cast<double>(1ULL << 53)));
 }
 
 // Returns a standard-normal sample via Box-Muller.
-__device__ inline double normalHash(std::uint64_t seed) {
-    const double u1 = max(uniformHash(seed),                         1e-15);
-    const double u2 =     uniformHash(splitmix64(seed ^ 0x1234567890ABCDEFULL));
-    constexpr double TWO_PI = 6.283185307179586476925;
-    return sqrt(-2.0 * log(u1)) * cos(TWO_PI * u2);
+__device__ inline Scalar normalHash(std::uint64_t seed) {
+    const Scalar u1 = fmaxf(uniformHash(seed),                         1e-15f);
+    const Scalar u2 =       uniformHash(splitmix64(seed ^ 0x1234567890ABCDEFULL));
+    constexpr Scalar TWO_PI = 6.283185307179586476925f;
+    return sqrtf(-2.0f * logf(u1)) * cosf(TWO_PI * u2);
 }
 
 // Tournament selection using stateless RNG.
 // slot = 0 for parent-1, slot = 1 for parent-2 — ensures independent draws.
-__device__ inline int tournamentSelectSL(const double* fitness, int populationSize,
+__device__ inline int tournamentSelectSL(const Scalar* fitness, int populationSize,
                                          int tournamentSize,
                                          std::uint64_t seed, int slot) {
     // First candidate
     std::uint64_t h0 = splitmix64(seed ^ (static_cast<std::uint64_t>(slot) << 32));
     int winner       = static_cast<int>(h0 % static_cast<std::uint64_t>(populationSize));
-    double winnerFit = fitness[winner];
+    Scalar winnerFit = fitness[winner];
 
     for (int k = 1; k < tournamentSize; ++k) {
         std::uint64_t hk = splitmix64(seed ^ (static_cast<std::uint64_t>(slot) << 32)
                                            ^ static_cast<std::uint64_t>(k));
         int candidate       = static_cast<int>(hk % static_cast<std::uint64_t>(populationSize));
-        double candidateFit = fitness[candidate];
+        Scalar candidateFit = fitness[candidate];
         if (candidateFit < winnerFit) {
             winner    = candidate;
             winnerFit = candidateFit;
@@ -132,14 +133,14 @@ __device__ inline int tournamentSelectSL(const double* fitness, int populationSi
 // ── Kernels ──────────────────────────────────────────────────────────────────
 
 // Fills population with uniform random values — stateless (no curand states).
-__global__ void initPopulation(double* population, int populationSize, int dimensions,
-                               double lowerBound, double upperBound,
+__global__ void initPopulation(Scalar* population, int populationSize, int dimensions,
+                               Scalar lowerBound, Scalar upperBound,
                                std::uint64_t baseSeed) {
     const int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= populationSize) return;
 
     const int    base = idx * dimensions;
-    const double span = upperBound - lowerBound;
+    const Scalar span = upperBound - lowerBound;
 
     for (int j = 0; j < dimensions; ++j) {
         // Unique seed per (individual, gene): mix in individual and gene indices.
@@ -151,7 +152,7 @@ __global__ void initPopulation(double* population, int populationSize, int dimen
 }
 
 // One thread per individual: evaluates device fitness.
-__global__ void evaluatePopulation(const double* population, double* fitness,
+__global__ void evaluatePopulation(const Scalar* population, Scalar* fitness,
                                    int populationSize, int dimensions, ProblemId problem) {
     const int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= populationSize) return;
@@ -176,12 +177,12 @@ __global__ void evaluatePopulation(const double* population, double* fitness,
 // Phase A: select parents and compute crossover split point.
 // dPairs[i]  = {parent1_index, parent2_index}
 // dSplits[i] = crossover split in [1, dim-1], or -1 for no crossover.
-__global__ void precomputePairs(const double* fitness,
+__global__ void precomputePairs(const Scalar* fitness,
                                 int2*         pairs,
                                 int*          splits,
                                 int populationSize, int dimensions,
                                 int elitismOffset, int tournamentSize,
-                                double crossoverRate,
+                                Scalar crossoverRate,
                                 std::uint64_t baseSeed, std::uint64_t generation) {
     const int pairIndex = blockIdx.x * blockDim.x + threadIdx.x;
     if (elitismOffset + pairIndex * 2 >= populationSize) return;
@@ -204,10 +205,10 @@ __global__ void precomputePairs(const double* fitness,
 }
 
 // Phase B: one thread per (child, gene) — fully parallel gene evolution.
-__global__ void evolveGenes(const double* population, double* nextPopulation,
+__global__ void evolveGenes(const Scalar* population, Scalar* nextPopulation,
                             const int2* pairs, const int* splits,
                             int populationSize, int dimensions,
-                            int elitismOffset, double mutationRate,
+                            int elitismOffset, Scalar mutationRate,
                             std::uint64_t baseSeed, std::uint64_t generation) {
     const int gid            = blockIdx.x * blockDim.x + threadIdx.x;
     const int totalChildGenes = (populationSize - elitismOffset) * dimensions;
@@ -226,7 +227,7 @@ __global__ void evolveGenes(const double* population, double* nextPopulation,
                                    : ((childInPair == 0) ? (gene < split) : (gene >= split));
 
     const int parentIdx = useP1 ? pair.x : pair.y;
-    double    geneVal   = population[parentIdx * dimensions + gene];
+    Scalar    geneVal   = population[parentIdx * dimensions + gene];
 
     // Stateless mutation: unique seed per (generation, childGlobal, gene).
     const int  childGlobal = elitismOffset + childLocal;
@@ -247,16 +248,16 @@ __global__ void evolveGenes(const double* population, double* nextPopulation,
 // Parallel reduction: each block finds its local minimum fitness and index.
 // A CPU pass over the (numBlocks) partial results finishes the reduction.
 // This replaces the full D2H fitness copy + CPU linear scan done every generation.
-__global__ void findBestBlock(const double* fitness, int populationSize,
-                              double* partialFitness, int* partialIndex) {
+__global__ void findBestBlock(const Scalar* fitness, int populationSize,
+                              Scalar* partialFitness, int* partialIndex) {
     extern __shared__ char smem[];
-    double* sFit = reinterpret_cast<double*>(smem);
-    int*    sIdx = reinterpret_cast<int*>(smem + blockDim.x * sizeof(double));
+    Scalar* sFit = reinterpret_cast<Scalar*>(smem);
+    int*    sIdx = reinterpret_cast<int*>(smem + blockDim.x * sizeof(Scalar));
 
     const int tid = threadIdx.x;
     const int gid = blockIdx.x * blockDim.x + tid;
 
-    sFit[tid] = (gid < populationSize) ? fitness[gid] : 1e308;
+    sFit[tid] = (gid < populationSize) ? fitness[gid] : 1e30f;
     sIdx[tid] = (gid < populationSize) ? gid          : -1;
     __syncthreads();
 
@@ -276,19 +277,19 @@ __global__ void findBestBlock(const double* fitness, int populationSize,
 
 // Finalize min reduction on device in a single block so host does not need
 // to synchronize/copy partial arrays each generation.
-__global__ void finalizeBest(const double* partialFitness, const int* partialIndex,
+__global__ void finalizeBest(const Scalar* partialFitness, const int* partialIndex,
                              int partialCount,
-                             double* bestFitness, int* bestIndex) {
+                             Scalar* bestFitness, int* bestIndex) {
     extern __shared__ char smem[];
-    double* sFit = reinterpret_cast<double*>(smem);
-    int*    sIdx = reinterpret_cast<int*>(smem + blockDim.x * sizeof(double));
+    Scalar* sFit = reinterpret_cast<Scalar*>(smem);
+    int*    sIdx = reinterpret_cast<int*>(smem + blockDim.x * sizeof(Scalar));
 
     const int tid = threadIdx.x;
 
-    double localBest = 1e308;
+    Scalar localBest = 1e30f;
     int localIndex = -1;
     for (int i = tid; i < partialCount; i += blockDim.x) {
-        const double f = partialFitness[i];
+        const Scalar f = partialFitness[i];
         if (f < localBest) {
             localBest = f;
             localIndex = partialIndex[i];
@@ -314,7 +315,7 @@ __global__ void finalizeBest(const double* partialFitness, const int* partialInd
 }
 
 // Copy elite individual from current population to next population slot 0.
-__global__ void copyElite(const double* population, double* nextPopulation,
+__global__ void copyElite(const Scalar* population, Scalar* nextPopulation,
                           const int* bestIndex, int dimensions) {
     const int j = blockIdx.x * blockDim.x + threadIdx.x;
     if (j >= dimensions) {
@@ -334,10 +335,10 @@ inline bool checkCuda(cudaError_t status, const char* operation) {
 }
 
 inline bool evaluatePopulationHost(
-        const double* dPopulation, double* dFitness,
+    const Scalar* dPopulation, Scalar* dFitness,
         int populationSize, int dimensions,
         const galib::FitnessFunction<double>& fitness_function,
-        std::vector<double>& hPopulation, std::vector<double>& hFitness,
+    std::vector<Scalar>& hPopulation, std::vector<Scalar>& hFitness,
         std::size_t genesBytes, std::size_t fitnessBytes) {
     if (!checkCuda(cudaMemcpy(hPopulation.data(), dPopulation, genesBytes,
                               cudaMemcpyDeviceToHost),
@@ -349,8 +350,8 @@ inline bool evaluatePopulationHost(
                                * static_cast<std::size_t>(dimensions);
         std::vector<double> genotype(static_cast<std::size_t>(dimensions));
         for (int j = 0; j < dimensions; ++j)
-            genotype[static_cast<std::size_t>(j)] = hPopulation[base + static_cast<std::size_t>(j)];
-        hFitness[static_cast<std::size_t>(i)] = fitness_function.evaluate(genotype);
+            genotype[static_cast<std::size_t>(j)] = static_cast<double>(hPopulation[base + static_cast<std::size_t>(j)]);
+        hFitness[static_cast<std::size_t>(i)] = static_cast<Scalar>(fitness_function.evaluate(genotype));
     }
 
     if (!checkCuda(cudaMemcpy(dFitness, hFitness.data(), fitnessBytes,
@@ -407,22 +408,22 @@ bool StandardGACUDA::run(Population<double>& population) const {
 
     const std::size_t genesCount   = static_cast<std::size_t>(populationSize)
                                    * static_cast<std::size_t>(dimensions);
-    const std::size_t genesBytes   = genesCount * sizeof(double);
-    const std::size_t fitnessBytes = static_cast<std::size_t>(populationSize) * sizeof(double);
+    const std::size_t genesBytes   = genesCount * sizeof(Scalar);
+    const std::size_t fitnessBytes = static_cast<std::size_t>(populationSize) * sizeof(Scalar);
 
     const int numEvalBlocks          = divUp(populationSize, kBlockSize);
-    const std::size_t partialFitnessBytes = static_cast<std::size_t>(numEvalBlocks) * sizeof(double);
+    const std::size_t partialFitnessBytes = static_cast<std::size_t>(numEvalBlocks) * sizeof(Scalar);
     const std::size_t partialIndexBytes   = static_cast<std::size_t>(numEvalBlocks) * sizeof(int);
 
     const int numPairs = (populationSize + 1) / 2;
 
     // ── Device buffers ────────────────────────────────────────────────────────
-    double* dPopulation     = nullptr;
-    double* dNextPopulation = nullptr;
-    double* dFitness        = nullptr;
-    double* dPartialFitness = nullptr;
+    Scalar* dPopulation     = nullptr;
+    Scalar* dNextPopulation = nullptr;
+    Scalar* dFitness        = nullptr;
+    Scalar* dPartialFitness = nullptr;
     int*    dPartialIndex   = nullptr;
-    double* dBestFitness    = nullptr;
+    Scalar* dBestFitness    = nullptr;
     int*    dBestIndex      = nullptr;
     int2*   dPairs          = nullptr;  // parent index pairs  (numPairs entries)
     int*    dSplits         = nullptr;  // crossover split pts (numPairs entries)
@@ -432,7 +433,7 @@ bool StandardGACUDA::run(Population<double>& population) const {
         !checkCuda(cudaMalloc(&dFitness,        fitnessBytes),        "cudaMalloc(dFitness)")        ||
         !checkCuda(cudaMalloc(&dPartialFitness, partialFitnessBytes), "cudaMalloc(dPartialFitness)") ||
         !checkCuda(cudaMalloc(&dPartialIndex,   partialIndexBytes),   "cudaMalloc(dPartialIndex)")   ||
-        !checkCuda(cudaMalloc(&dBestFitness,    sizeof(double)),       "cudaMalloc(dBestFitness)")    ||
+        !checkCuda(cudaMalloc(&dBestFitness,    sizeof(Scalar)),       "cudaMalloc(dBestFitness)")    ||
         !checkCuda(cudaMalloc(&dBestIndex,      sizeof(int)),          "cudaMalloc(dBestIndex)")      ||
         !checkCuda(cudaMalloc(&dPairs,  static_cast<std::size_t>(numPairs) * sizeof(int2)), "cudaMalloc(dPairs)")  ||
         !checkCuda(cudaMalloc(&dSplits, static_cast<std::size_t>(numPairs) * sizeof(int)),  "cudaMalloc(dSplits)")) {
@@ -456,7 +457,7 @@ bool StandardGACUDA::run(Population<double>& population) const {
 
     initPopulation<<<divUp(populationSize, kBlockSize), kBlockSize>>>(
         dPopulation, populationSize, dimensions,
-        config_m.lower_bound, config_m.upper_bound, seed);
+        static_cast<Scalar>(config_m.lower_bound), static_cast<Scalar>(config_m.upper_bound), seed);
     if (!checkCuda(cudaGetLastError(),          "initPopulation launch") ||
         !checkCuda(cudaDeviceSynchronize(),     "initPopulation sync")) {
         cleanup(); return false;
@@ -475,8 +476,8 @@ bool StandardGACUDA::run(Population<double>& population) const {
             std::cerr << "Error: Could not open log file " << config_m.log_file << std::endl;
     }
 
-    std::vector<double> hFitness;
-    std::vector<double> hPopulation;
+    std::vector<Scalar> hFitness;
+    std::vector<Scalar> hPopulation;
     if (!use_device_fitness) {
         hFitness.resize(static_cast<std::size_t>(populationSize));
         hPopulation.resize(genesCount);
@@ -484,7 +485,7 @@ bool StandardGACUDA::run(Population<double>& population) const {
         hPopulation.resize(genesCount);
     }
 
-    const std::size_t   smemSize = static_cast<std::size_t>(kBlockSize) * (sizeof(double) + sizeof(int));
+    const std::size_t   smemSize = static_cast<std::size_t>(kBlockSize) * (sizeof(Scalar) + sizeof(int));
 
     // ── Main generation loop ──────────────────────────────────────────────────
     for (std::size_t generation = 0; generation < config_m.max_generations; ++generation) {
@@ -599,8 +600,8 @@ bool StandardGACUDA::run(Population<double>& population) const {
         }
     }
 
-    std::vector<double> finalPopulation(genesCount);
-    std::vector<double> finalFitness(static_cast<std::size_t>(populationSize));
+    std::vector<Scalar> finalPopulation(genesCount);
+    std::vector<Scalar> finalFitness(static_cast<std::size_t>(populationSize));
 
     if (!checkCuda(cudaMemcpy(finalPopulation.data(), dPopulation,
                               genesBytes, cudaMemcpyDeviceToHost),
@@ -618,9 +619,9 @@ bool StandardGACUDA::run(Population<double>& population) const {
                                * static_cast<std::size_t>(dimensions);
         for (int j = 0; j < dimensions; ++j)
             genotype[static_cast<std::size_t>(j)] =
-                finalPopulation[base + static_cast<std::size_t>(j)];
+                static_cast<double>(finalPopulation[base + static_cast<std::size_t>(j)]);
         population[static_cast<std::size_t>(i)].setFitness(
-            finalFitness[static_cast<std::size_t>(i)]);
+            static_cast<double>(finalFitness[static_cast<std::size_t>(i)]));
     }
 
     if (log.is_open()) log.close();

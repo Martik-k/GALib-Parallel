@@ -13,8 +13,10 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 BUILD_DIR = os.path.join(PROJECT_ROOT, "build")
 BUILD_CUDA_DIR = os.path.join(PROJECT_ROOT, "build-cuda")
-EXECUTABLE_CPU = os.path.join(BUILD_DIR, "ga_example")
-EXECUTABLE_CUDA = os.path.join(BUILD_CUDA_DIR, "ga_example")
+DEFAULT_EXECUTABLE_OPENMP = os.path.join(BUILD_DIR, "ga_example")
+DEFAULT_EXECUTABLE_CUDA = os.path.join(BUILD_CUDA_DIR, "ga_example")
+EXECUTABLE_OPENMP = os.environ.get("GALIB_EXECUTABLE_OPENMP", DEFAULT_EXECUTABLE_OPENMP)
+EXECUTABLE_CUDA = os.environ.get("GALIB_EXECUTABLE_CUDA", DEFAULT_EXECUTABLE_CUDA)
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "visualizations", "images")
 RESULTS_DIR = os.path.join(PROJECT_ROOT, "visualizations", "results")
 
@@ -48,14 +50,22 @@ def ensure_dirs() -> None:
 
 
 def resolve_executable(backend: str) -> str:
-    if os.path.exists(EXECUTABLE_CPU):
-        return EXECUTABLE_CPU
+    key = backend.upper()
 
-    if os.path.exists(EXECUTABLE_CUDA):
-        return EXECUTABLE_CUDA
+    if key == "CUDA":
+        if os.path.exists(EXECUTABLE_CUDA):
+            return EXECUTABLE_CUDA
+        raise FileNotFoundError(
+            f"CUDA benchmark requires CUDA executable at {EXECUTABLE_CUDA}. "
+            "Set GALIB_EXECUTABLE_CUDA to override."
+        )
+
+    if os.path.exists(EXECUTABLE_OPENMP):
+        return EXECUTABLE_OPENMP
 
     raise FileNotFoundError(
-        f"No executable found. Expected one of: {EXECUTABLE_CPU} or {EXECUTABLE_CUDA}"
+        f"OpenMP benchmark requires CPU executable at {EXECUTABLE_OPENMP}. "
+        "Set GALIB_EXECUTABLE_OPENMP to override."
     )
 
 
@@ -133,15 +143,23 @@ def run_case(problem_name: str, backend: str, dimensions: int, pop_size: int) ->
 
 
 def main() -> None:
-    if not os.path.exists(EXECUTABLE_CPU) and not os.path.exists(EXECUTABLE_CUDA):
+    if not os.path.exists(EXECUTABLE_OPENMP):
         raise FileNotFoundError(
-            f"No executable found. Expected at least one of: {EXECUTABLE_CPU} or {EXECUTABLE_CUDA}"
+            f"Missing OpenMP executable: {EXECUTABLE_OPENMP}. "
+            "Set GALIB_EXECUTABLE_OPENMP to override."
+        )
+    if not os.path.exists(EXECUTABLE_CUDA):
+        raise FileNotFoundError(
+            f"Missing CUDA executable: {EXECUTABLE_CUDA}. "
+            "Set GALIB_EXECUTABLE_CUDA to override."
         )
 
     ensure_dirs()
 
     results = []
     print("Starting CPU vs CUDA benchmark matrix...")
+    print(f"OpenMP executable: {EXECUTABLE_OPENMP}")
+    print(f"CUDA executable:   {EXECUTABLE_CUDA}")
 
     for problem_name in FUNCTIONS:
         for size in SIZES:
