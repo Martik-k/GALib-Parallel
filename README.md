@@ -90,7 +90,63 @@ mpirun -np <num_processes> ./build/island_example configs/config_island.yaml
 
 Each run generates a CSV log file containing the population history for visualization.
 
-### 2. 3D Evolution Visualization
+### 2. Using GALib in Your Own Project
+
+If you want to use GALib as a C++ library in another project, first build and install it locally:
+
+```bash
+cmake -S . -B build
+cmake --build build -j4
+cmake --install build --prefix ./install
+```
+
+This creates a local install tree with:
+
+* `install/include/` - public header files
+* `install/lib/cmake/GALib/` - CMake package files for `find_package(GALib)`
+
+In your own project, use the following `CMakeLists.txt`:
+
+```cmake
+cmake_minimum_required(VERSION 3.10)
+project(MyApp LANGUAGES CXX)
+
+find_package(GALib REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE GALib::ga_lib)
+```
+
+Then configure your project with:
+
+```bash
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/absolute/path/to/GALib-Parallel/install
+cmake --build build
+```
+
+A minimal `main.cpp` can look like this:
+
+```cpp
+#include <yaml-cpp/yaml.h>
+
+#include "benchmarks/HimmelblauFunction.h"
+#include "core/GridPopulation.h"
+#include "utils/AlgorithmBuilder.h"
+
+int main() {
+    YAML::Node config = YAML::LoadFile("config.yaml");
+
+    galib::benchmark::HimmelblauFitness<double> fitness_fn;
+    galib::GridPopulation<double> population(10, 10, 2);
+    population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
+
+    auto ga = galib::utils::AlgorithmBuilder<double>::buildCellularGA(config, fitness_fn);
+    ga->run(population);
+}
+```
+
+
+### 3. 3D Evolution Visualization
 Generates MP4 and GIF animations showing the population converging toward the global minimum, along with a static PNG plot.
 
 For Standard GA:
@@ -115,7 +171,7 @@ python3 scripts/visualization_island.py configs/config_island.yaml
 
 Files are automatically saved to `visualizations/animations/` and `visualizations/images/`.
 
-### 3. OpenMP Performance Benchmarking
+### 4. OpenMP Performance Benchmarking
 Runs the algorithm across multiple thread counts to test parallel efficiency and generates execution time and speedup graphs.
 
 ```bash
