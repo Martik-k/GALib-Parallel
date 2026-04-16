@@ -115,6 +115,23 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
         \item \textbf{Mutation:} We use Gaussian Mutation. It adds a small random number to the genes. This helps the algorithm make small steps to find the exact minimum, and sometimes big jumps to escape bad local zones.
     \end{itemize}
 
+    \subsection{CUDA Implementation of Generational Genetic Algorithm}
+    We implemented a CUDA backend for the generational GA to accelerate its most expensive data-parallel stages: fitness evaluation, crossover, mutation, and elite selection. The implementation uses dedicated CUDA kernels, stateless on-device random generation, FP32 internal computation with CUDA fast math, and a resident device population to minimize host-device transfers.
+
+    Experiments were run on an NVIDIA GeForce RTX 4050 Laptop GPU (6 GB VRAM) using the HeavyTrig benchmark. Figure~\ref{fig:cuda_ga_speedup} summarizes measured speedups against the OpenMP CPU backend.
+
+    \begin{figure}[t]
+        \centering
+        \includegraphics[width=\columnwidth]{figures/cuda_ga_speedup.png}
+        \caption{CUDA speedup for Generational GA on HeavyTrig benchmark.}
+        \label{fig:cuda_ga_speedup}
+    \end{figure}
+
+    The measured range shows consistent GPU advantage for compute-heavy workloads, with speedups from 3.70$\times$ to 12.04$\times$.
+
+
+    
+
     \subsection{Differential Evolution}
     Differential Evolution (DE) is implemented for efficient optimization of continuous variables. Unlike traditional mutation operators, DE generates new candidate solutions by taking the difference between randomly selected individuals in the population. The mutation strategy used is DE/rand/1, where for each individual $x_i$, a mutant vector $v_i$ is created as:
     \begin{equation}
@@ -151,13 +168,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \subsection{Differential Evolution with Hybrid OpenMP/AVX}
     We plan to implement Differential Evolution (DE) for faster optimization of continuous variables. Unlike basic mutation, DE creates new solutions by calculating the mathematical difference between existing individuals in the population. This helps the algorithm adapt its search direction and converge much faster.
 
-    % \section{Benchmark Problems and Demonstrations}
-
-    % \section{Experimental Setup}
-
-    % \section{Results and Discussion}
-
-    % \section{Conclusion}
+    \section{Conclusion}
     % This section will summarize the library's development progress, highlighting the capabilities of the implemented parallelization strategies across specific hardware constraints.
 
     \section*{Acknowledgment}
