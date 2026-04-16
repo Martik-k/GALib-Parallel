@@ -143,16 +143,54 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     
     Since the population is arranged as a grid, different cells can be processed independently. This structure makes the algorithm suitable for parallel processing where multiple cells of the population can be evaluated and evolved simultaneously.
 
-    \section{CUDA Acceleration}
-    The CUDA backend is already implemented and benchmarked in this version of the project. It maps population evaluation, selection, crossover, and mutation to GPU execution so that larger populations can benefit from SIMT-style parallelism. The measured results show that this approach becomes beneficial once the workload is large enough to amortize GPU overhead.
+    \subsection{Differential Evolution with Hybrid OpenMP/AVX}
 
-    % \section{Benchmark Problems and Demonstrations}
+    We plan to implement Differential Evolution (DE) for faster optimization of continuous variables. Unlike basic mutation, DE creates new solutions by calculating the mathematical difference between existing individuals in the population. This helps the algorithm adapt its search direction and converge much faster.
 
-    % \section{Experimental Setup}
+    \section{Benchmark Problems and Demonstrations}
+    To compare the CPU and CUDA implementations, we executed the same genetic algorithm parameters on two benchmark functions: Sphere and Rastrigin. Each function was evaluated at three problem sizes that combine dimension and population growth: Small (2D, 250 individuals), Medium (10D, 2000 individuals), and Large (50D, 10000 individuals). All runs used 50 generations, tournament selection, single-point crossover, and Gaussian mutation.
+
+    The benchmark matrix was chosen to expose two important effects. First, the Sphere function is computationally cheaper and highlights kernel-launch overhead. Second, the Rastrigin function is more expensive and better represents the kind of multimodal landscapes where GPU parallelism can pay off.
+
+    \section{Experimental Setup}
+    The measurements were collected on the same machine using the compiled \texttt{ga\_example} binary. CPU runs used the OpenMP backend, while GPU runs used the CUDA backend activated by the YAML configuration field \texttt{algorithm.backend = CUDA}. Reported times are wall-clock durations for a full optimization run.
     
-    % \section{Results and Discussion}
-    
-    % \section{Conclusion}
+    \section{Results and Discussion}
+    Table~\ref{tab:cuda_cpu_benchmark} summarizes the measured runtimes and the corresponding speedup defined as $S = T_{CPU} / T_{CUDA}$. Figure~\ref{fig:cuda_cpu_comparison} visualizes the same comparison.
+
+    \begin{table}[t]
+    \centering
+    \scriptsize
+    \begin{tabular}{llrrrrr}
+    \hline
+    Function & Size & Dim. & Pop. & CPU (s) & CUDA (s) & Speedup \\
+    \hline
+    Sphere & Small & 2 & 250 & 0.0045 & 0.3983 & 0.011 \\
+    Sphere & Medium & 10 & 2000 & 0.0089 & 0.4432 & 0.020 \\
+    Sphere & Large & 50 & 10000 & 0.0417 & 0.6185 & 0.067 \\
+    Rastrigin & Small & 2 & 250 & 0.0048 & 0.3975 & 0.012 \\
+    Rastrigin & Medium & 10 & 2000 & 0.0099 & 0.4409 & 0.022 \\
+    Rastrigin & Large & 50 & 10000 & 0.0611 & 0.7017 & 0.087 \\
+    \hline
+    \end{tabular}
+    \caption{CPU/OpenMP versus CUDA runtime comparison for the genetic algorithm. Speedup is computed as $T_{CPU} / T_{CUDA}$.}
+    \label{tab:cuda_cpu_benchmark}
+    \end{table}
+
+    \begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{../visualizations/images/cuda_cpu_comparison.png}
+    \caption{Runtime comparison between CPU/OpenMP and CUDA implementations across benchmark sizes.}
+    \label{fig:cuda_cpu_comparison}
+    \end{figure}
+
+    The latest measurements do not show a CUDA crossover in this implementation. OpenMP remains faster on all tested sizes, although the relative gap becomes smaller as the workload increases. This indicates that the GPU path still carries enough orchestration overhead to outweigh its parallelism benefits for these benchmark sizes.
+
+    On the largest Sphere case, CUDA is still about 14.8x slower than OpenMP. On the largest Rastrigin case, CUDA is about 11.5x slower. The more expensive Rastrigin function does not reverse the trend, but it does narrow the gap slightly because it offers more arithmetic work per individual.
+
+    These measurements are still useful for the implementation goal of the project: they show that the GPU backend is functionally correct and scalable in problem size, but it still needs further optimization before it can outperform the OpenMP version on these benchmarks. The remaining bottlenecks are likely in memory movement, synchronization, and kernel efficiency rather than in the genetic operators themselves.
+
+    \section{Conclusion}
     % This section will summarize the library's development progress, highlighting the capabilities of the implemented parallelization strategies across specific hardware constraints.
 
     \section*{Acknowledgment}
