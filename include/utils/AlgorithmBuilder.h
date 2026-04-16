@@ -92,7 +92,16 @@ namespace galib::utils {
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
 
-            return nullptr; // Placeholder for now
+            return std::make_unique<StandardGA<GeneType>>(
+                ff,
+                std::move(selection),
+                std::move(mutation),
+                std::move(crossover),
+                params.mutation_rate,
+                params.crossover_rate,
+                params.max_generations,
+                params.use_elitism
+            );
         }
 
         /**
@@ -146,7 +155,12 @@ namespace galib::utils {
                 params.f_weight = node["differential_evolution"]["f_weight"].as<double>(Defaults::DE::F_WEIGHT);
             }
 
-            return nullptr; 
+            return std::make_unique<DifferentialEvolutionGA<GeneType>>(
+                ff,
+                params.f_weight,
+                params.cr_rate,
+                params.max_generations
+            ); 
         }
 
         /**

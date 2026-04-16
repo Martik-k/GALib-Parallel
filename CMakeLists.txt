@@ -84,6 +84,11 @@ if (GALIB_BUILD_EXAMPLES)
         target_link_libraries(cellular_example PRIVATE ga_lib)
     endif ()
 
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/differential_evolution_example.cpp")
+        add_executable(de_example examples/differential_evolution_example.cpp)
+        target_link_libraries(de_example PRIVATE ga_lib)
+    endif ()
+
     if (GALIB_BUILD_PYTHON_TOOLS)
         find_package(Python3 COMPONENTS Interpreter)
 

@@ -22,9 +22,9 @@ namespace galib {
     class StandardGA {
     private:
         FitnessFunction<GeneType>& fitness_function_m;
-        Selection<GeneType>& selection_m;
-        Mutation<GeneType>& mutation_m;
-        Crossover<GeneType>& crossover_m;
+        std::unique_ptr<Selection<GeneType>> selection_m;
+        std::unique_ptr<Mutation<GeneType>> mutation_m;
+        std::unique_ptr<Crossover<GeneType>> crossover_m;
 
         double mutation_rate_m;
         double crossover_rate_m;
@@ -46,14 +46,14 @@ namespace galib {
     public:
         StandardGA(
             FitnessFunction<GeneType>& ff,
-            Selection<GeneType>& sel,
-            Mutation<GeneType>& mu,
-            Crossover<GeneType>& cs,
+            std::unique_ptr<Selection<GeneType>> sel,
+            std::unique_ptr<Mutation<GeneType>> mu,
+            std::unique_ptr<Crossover<GeneType>> cs,
             double m_rate,
             double c_rate,
             std::size_t max_gen,
             bool elitism = true
-        ) : fitness_function_m(ff), selection_m(sel), mutation_m(mu), crossover_m(cs),
+        ) : fitness_function_m(ff), selection_m(std::move(sel)), mutation_m(std::move(mu)), crossover_m(std::move(cs)),
             mutation_rate_m(m_rate), crossover_rate_m(c_rate), max_generations_m(max_gen),
             use_elitism_m(elitism) {}
 
@@ -108,11 +108,11 @@ namespace galib {
                     thread_local static std::mt19937_64 tl_gen(tl_rd());
                     thread_local static std::uniform_real_distribution<double> tl_dist(0.0, 1.0);
 
-                    const Individual<GeneType>& parent1 = selection_m.select(population);
-                    const Individual<GeneType>& parent2 = selection_m.select(population);
+                    const Individual<GeneType>& parent1 = selection_m->select(population);
+                    const Individual<GeneType>& parent2 = selection_m->select(population);
 
                     if (tl_dist(tl_gen) < crossover_rate_m) {
-                        auto children = crossover_m.crossover(parent1, parent2);
+                        auto children = crossover_m->crossover(parent1, parent2);
                         new_population[i] = std::move(children.first);
                         if (i + 1 < population_size) {
                             new_population[i + 1] = std::move(children.second);
@@ -124,9 +124,9 @@ namespace galib {
                         }
                     }
 
-					mutation_m.mutate(new_population[i], mutation_rate_m);
+					mutation_m->mutate(new_population[i], mutation_rate_m);
                     if (i + 1 < population_size) {
-                        mutation_m.mutate(new_population[i + 1], mutation_rate_m);
+                        mutation_m->mutate(new_population[i + 1], mutation_rate_m);
                     }
                 }
 

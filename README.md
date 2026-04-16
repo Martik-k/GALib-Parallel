@@ -1,13 +1,15 @@
 # GALib-Parallel
 
-A header-only C++ library for continuous optimization using a Real-Coded Genetic Algorithm (RCGA), accelerated with OpenMP. The project includes Python tools for 3D visualization of the optimization process and performance benchmarking.
+A header-only C++ library for continuous optimization using various evolutionary algorithms (Standard GA, Cellular GA, Island GA, Differential Evolution), accelerated with OpenMP, MPI, and CUDA. The project includes Python tools for 3D visualization of the optimization process and performance benchmarking.
 
 ## Key Features
 
 * **Header-only Architecture:** Easy integration into existing C++ projects without complex linking.
-* **OpenMP Parallelization:** Accelerated population evaluation and reproduction steps.
+* **Multiple Algorithms:** Support for Standard GA, Cellular GA, Island GA (with MPI), and Differential Evolution.
+* **Parallelization:** OpenMP for intra-population parallelism, MPI for inter-population (island model), CUDA for GPU acceleration.
 * **Data-Driven Configuration:** YAML-based setup for algorithm parameters, functions, and bounds.
-* **Continuous Search Space:** Implements RCGA natively with double precision floating-point representation.
+* **Continuous Search Space:** Implements real-coded algorithms with double precision floating-point representation.
+* **Benchmark Functions:** Built-in support for Sphere, Rastrigin, Himmelblau, and De Jong F5 functions.
 * **Python Analytics Tooling:** Automated scripts for generating 2D/3D evolution animations and parallel speedup graphs.
 
 ## Prerequisites
@@ -16,6 +18,8 @@ A header-only C++ library for continuous optimization using a Real-Coded Genetic
 * C++20 compatible compiler (GCC/Clang)
 * CMake (>= 3.15)
 * OpenMP
+* MPI (for island model, optional)
+* CUDA Toolkit (for GPU acceleration, optional)
 
 **Python Analytics:**
 * Python 3.x
@@ -25,10 +29,12 @@ A header-only C++ library for continuous optimization using a Real-Coded Genetic
 ## Project Structure
 
 * `include/` - Core header-only C++ library files.
-* `examples/` - Example source files (`main.cpp`) utilizing the library.
-* `configs/` - YAML configuration files for benchmarking (e.g., Sphere, Rastrigin).
-* `scripts/` - Python scripts for data visualization and performance testing.
+* `examples/` - Example source files for different algorithms (standard_ga_example.cpp, island_ga_example.cpp, cellular_ga_example.cpp, differential_evolution_example.cpp).
+* `configs/` - YAML configuration files for different algorithms and benchmarking (e.g., Sphere, Rastrigin).
+* `scripts/` - Python scripts for data visualization (visualization.py, visualization_standard.py, visualization_de.py, visualization_cellular.py, visualization_island.py) and performance testing.
 * `build/` - Compilation output and generated CSV logs.
+* `src/` - Source files for CUDA implementations.
+* `cmake/` - CMake configuration files.
 
 ## Build Instructions
 
@@ -46,40 +52,68 @@ A header-only C++ library for continuous optimization using a Real-Coded Genetic
    make
    ```
 
+   To build specific examples:
+   ```bash
+   make ga_example          # Standard GA
+   make island_example      # Island GA (requires MPI)
+   make cellular_example    # Cellular GA
+   make de_example          # Differential Evolution
+   ```
+
+   Note: Island example requires MPI. If MPI is not found, it won't be built.
+
 ## Usage
 
-### 1. Running the Genetic Algorithm
-Execute the compiled binary from the build directory, passing the path to the desired YAML configuration file:
+### 1. Running the Algorithms
 
+The project provides separate executables for each algorithm type. Run them from the project root, passing the path to a YAML configuration file:
+
+**Standard GA:**
 ```bash
-cd build
-./ga_example ../configs/viz_rastrigin.yaml  # or viz_sphere.yaml
+./build/ga_example configs/config_standard.yaml
 ```
 
-To run the CUDA backend (when CUDA toolkit is available during CMake configure), use a config with:
-
-```yaml
-algorithm:
-   backend: "CUDA"
-```
-
-Example:
-
+**Island GA (requires MPI):**
 ```bash
-./ga_example ../configs/viz_rastrigin_cuda.yaml
+mpirun -np <num_processes> ./build/island_example configs/config_island.yaml
 ```
 
-This runs the algorithm and generates a CSV log file containing the population history.
+**Cellular GA:**
+```bash
+./build/cellular_example configs/full_config_example.yaml
+```
+
+**Differential Evolution:**
+```bash
+./build/de_example configs/config_de.yaml
+```
+
+Each run generates a CSV log file containing the population history for visualization.
 
 ### 2. 3D Evolution Visualization
 Generates MP4 and GIF animations showing the population converging toward the global minimum, along with a static PNG plot.
 
+For Standard GA:
 ```bash
-# Run from the project root
-python3 scripts/visualization.py viz_rastrigin.yaml  # or viz_sphere.yaml
+python3 scripts/visualization_standard.py configs/config_standard.yaml
 ```
 
-Files are automatically saved to visualizations/animations/ and visualizations/images/
+For Differential Evolution:
+```bash
+python3 scripts/visualization_de.py configs/config_de.yaml
+```
+
+For Cellular GA:
+```bash
+python3 scripts/visualization_cellular.py configs/full_config_example.yaml
+```
+
+For Island GA:
+```bash
+python3 scripts/visualization_island.py configs/config_island.yaml
+```
+
+Files are automatically saved to `visualizations/animations/` and `visualizations/images/`.
 
 ### 3. OpenMP Performance Benchmarking
 Runs the algorithm across multiple thread counts to test parallel efficiency and generates execution time and speedup graphs.
@@ -89,5 +123,30 @@ Runs the algorithm across multiple thread counts to test parallel efficiency and
 python3 scripts/benchmark_omp.py
 ```
 
-The resulting plot is saved to visualizations/images/omp_performance_results.png.
+The resulting plot is saved to `visualizations/images/omp_performance_results.png`.
+
+## Configuration
+
+Configuration files are in YAML format and located in the `configs/` directory. Key sections:
+
+- `algorithm.type`: Choose from "standard", "cellular", "island", "differential_evolution"
+- `algorithm.max_generations`: Number of generations
+- `algorithm.mutation_rate`, `algorithm.crossover_rate`: Genetic operator rates
+- `algorithm.pop_size`: Population size (for standard and DE)
+- `algorithm.selection`, `algorithm.mutation`, `algorithm.crossover`: Configure genetic operators
+- Algorithm-specific parameters (e.g., `cellular.rows`, `island.topology`, `differential_evolution.f_weight`)
+
+See `configs/full_config_example.yaml` for all available options and examples.
+- Algorithm-specific sections (e.g., `cellular.rows`, `island.topology`)
+
+See `configs/full_config_example.yaml` for all available options.
+
+## Examples
+
+- `standard_ga_example.cpp`: Basic generational GA
+- `cellular_ga_example.cpp`: Grid-based cellular GA
+- `island_ga_example.cpp`: Multi-population island model with MPI
+- `differential_evolution_example.cpp`: DE algorithm
+
+Each example loads a YAML config and runs the optimization, printing the best fitness found.
 

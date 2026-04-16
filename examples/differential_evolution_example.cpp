@@ -12,7 +12,7 @@ using namespace galib;
 
 int main(int argc, char* argv[]) {
     try {
-        std::string config_path = (argc > 1) ? argv[1] : "configs/full_config_example.yaml";
+        std::string config_path = (argc > 1) ? argv[1] : "configs/config_de.yaml";
         YAML::Node full_config = YAML::LoadFile(config_path);
 
         const auto algorithm = full_config["algorithm"];
@@ -20,10 +20,10 @@ int main(int argc, char* argv[]) {
             throw std::invalid_argument("Missing 'algorithm' section in config.");
         }
 
-        const std::string algorithm_type = algorithm["type"].as<std::string>("standard");
-        if (algorithm_type != "standard") {
+        const std::string algorithm_type = algorithm["type"].as<std::string>("differential_evolution");
+        if (algorithm_type != "differential_evolution") {
             throw std::invalid_argument(
-                "This example only supports algorithm.type = 'standard'.");
+                "This example only supports algorithm.type = 'differential_evolution'.");
         }
 
         constexpr std::size_t num_genes = 10;
@@ -36,18 +36,18 @@ int main(int argc, char* argv[]) {
         Population<double> population(pop_size, num_genes);
         population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
 
-        const auto standard_ga =
-            utils::AlgorithmBuilder<double>::buildStandardGA(full_config, fitness_fn);
+        const auto de_ga =
+            utils::AlgorithmBuilder<double>::buildDifferentialEvolutionGA(full_config, fitness_fn);
 
         if (!log_file.empty()) {
-            standard_ga->enableLogging(log_file);
+            de_ga->enableLogging(log_file);
         }
 
-        std::cout << "Starting Standard GA..." << std::endl;
+        std::cout << "Starting Differential Evolution GA..." << std::endl;
         std::cout << "Configuration: " << config_path << std::endl;
         std::cout << "Population size: " << pop_size << std::endl;
 
-        standard_ga->run(population);
+        de_ga->run(population);
 
         const auto& best = population.getBestIndividual();
         std::cout << "Optimization finished. Best Fitness: " << best.getFitness() << std::endl;
