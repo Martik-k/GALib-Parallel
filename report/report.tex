@@ -43,7 +43,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \maketitle
 
     \begin{abstract}
-        While Genetic Algorithms (GAs) are powerful optimization tools, their high computational cost limits scalability. This paper details the development of a genetic algorithm library that includes shared-memory and accelerator-based parallelization strategies to solve this problem. We describe an implemented multi-threaded Generational GA, an implemented CUDA-accelerated GA, and outline future additions such as an MPI-based Island Model, an OpenMP Cellular GA, and a hybrid OpenMP/AVX Differential Evolution algorithm. The performance of this library is evaluated using 3D mathematical surfaces and high-dimensional polygon image approximation tasks.
+        While Genetic Algorithms (GAs) are powerful optimization tools, their high computational cost limits scalability. This paper details the development of a genetic algorithm library that includes shared-memory and accelerator-based parallelization strategies to solve this problem. We describe an implemented multi-threaded Generational GA, an implemented CUDA-accelerated GA, an implemented MPI-based Island Model, an implemented OpenMP Cellular GA, and an implemented OpenMP Differential Evolution algorithm. The performance of this library is evaluated using 3D mathematical surfaces and high-dimensional polygon image approximation tasks.
     \end{abstract}
 
     \begin{IEEEkeywords}
@@ -116,7 +116,22 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \end{itemize}
 
     \subsection{Differential Evolution}
-    We plan to implement Differential Evolution (DE) for faster optimization of continuous variables. Unlike basic mutation, DE creates new solutions by calculating the mathematical difference between existing individuals in the population. This helps the algorithm adapt its search direction and converge much faster.
+    Differential Evolution (DE) is implemented for efficient optimization of continuous variables. Unlike traditional mutation operators, DE generates new candidate solutions by taking the difference between randomly selected individuals in the population. The mutation strategy used is DE/rand/1, where for each individual $x_i$, a mutant vector $v_i$ is created as:
+    \begin{equation}
+        v_i = x_{r1} + F \cdot (x_{r2} - x_{r3})
+    \end{equation}
+    where $r1, r2, r3$ are distinct random indices, and $F$ is the differential weight (mutation scaling factor).
+
+    After mutation, binomial crossover is applied between the mutant $v_i$ and the original $x_i$ to produce the trial vector $u_i$:
+    \begin{equation}
+        u_{i,j} = \begin{cases} 
+        v_{i,j} & \text{if } rand_j \leq CR \text{ or } j = j_{rand} \\
+        x_{i,j} & \text{otherwise}
+        \end{cases}
+    \end{equation}
+    where $CR$ is the crossover rate, and $j_{rand}$ ensures at least one gene is taken from the mutant.
+
+    Selection is performed by comparing the fitness of $u_i$ and $x_i$, keeping the better one. This adaptive search mechanism allows DE to converge faster than traditional GAs on many optimization problems. The implementation uses OpenMP for parallel evaluation of the population.
 
     \subsection{Island Model Genetic Algorithm}
     For cluster computers with distributed memory, the library will include an Island Model GA. Here, the main population is divided into isolated groups, or ``islands,'' that evolve on their own in separate processes. 
