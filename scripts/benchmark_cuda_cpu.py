@@ -1,6 +1,7 @@
 import csv
 import os
 import subprocess
+import statistics
 import tempfile
 import time
 
@@ -11,9 +12,18 @@ import yaml
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 BUILD_DIR = os.path.join(PROJECT_ROOT, "build")
-EXECUTABLE = os.path.join(BUILD_DIR, "ga_example")
+BUILD_CUDA_DIR = os.path.join(PROJECT_ROOT, "build-cuda")
+DEFAULT_EXECUTABLE_OPENMP = os.path.join(BUILD_DIR, "ga_example")
+DEFAULT_EXECUTABLE_CUDA = os.path.join(BUILD_CUDA_DIR, "ga_example")
+EXECUTABLE_OPENMP = os.environ.get("GALIB_EXECUTABLE_OPENMP", DEFAULT_EXECUTABLE_OPENMP)
+EXECUTABLE_CUDA = os.environ.get("GALIB_EXECUTABLE_CUDA", DEFAULT_EXECUTABLE_CUDA)
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, "visualizations", "images")
 RESULTS_DIR = os.path.join(PROJECT_ROOT, "visualizations", "results")
+
+# One unmeasured warm-up run absorbs one-time CUDA runtime initialization/JIT cost.
+WARMUP_RUNS = 1
+# Use a robust estimator for noisy short-running benchmarks.
+MEASURE_RUNS = 5
 
 
 FUNCTIONS = ["Sphere", "Rastrigin"]
@@ -39,7 +49,27 @@ def ensure_dirs() -> None:
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
 
-def run_case(problem_name: str, backend: str, dimensions: int, pop_size: int) -> tuple[float, str]:
+def resolve_executable(backend: str) -> str:
+    key = backend.upper()
+
+    if key == "CUDA":
+        if os.path.exists(EXECUTABLE_CUDA):
+            return EXECUTABLE_CUDA
+        raise FileNotFoundError(
+            f"CUDA benchmark requires CUDA executable at {EXECUTABLE_CUDA}. "
+            "Set GALIB_EXECUTABLE_CUDA to override."
+        )
+
+    if os.path.exists(EXECUTABLE_OPENMP):
+        return EXECUTABLE_OPENMP
+
+    raise FileNotFoundError(
+        f"OpenMP benchmark requires CPU executable at {EXECUTABLE_OPENMP}. "
+        "Set GALIB_EXECUTABLE_OPENMP to override."
+    )
+
+
+def run_case(problem_name: str, backend: str, dimensions: int, pop_size: int) -> tuple[float, str, list[float]]:
     config = {
         "problem": {
             "name": problem_name,
@@ -63,48 +93,88 @@ def run_case(problem_name: str, backend: str, dimensions: int, pop_size: int) ->
     if backend.upper() == "OPENMP":
         env.setdefault("OMP_NUM_THREADS", str(os.cpu_count() or 8))
 
-    start = time.perf_counter()
-    process = subprocess.run(
-        [EXECUTABLE, config_path],
-        cwd=PROJECT_ROOT,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    elapsed = time.perf_counter() - start
+    executable = resolve_executable(backend)
+
+    # Warm-up runs are not measured.
+    for _ in range(WARMUP_RUNS):
+        warmup = subprocess.run(
+            [executable, config_path],
+            cwd=PROJECT_ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if warmup.returncode != 0:
+            os.unlink(config_path)
+            raise RuntimeError(
+                f"Warm-up failed for {problem_name} / {backend} / {dimensions}D / {pop_size}:\n"
+                f"STDOUT:\n{warmup.stdout}\nSTDERR:\n{warmup.stderr}"
+            )
+
+    timings: list[float] = []
+    last_stdout = ""
+    for _ in range(MEASURE_RUNS):
+        start = time.perf_counter()
+        process = subprocess.run(
+            [executable, config_path],
+            cwd=PROJECT_ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        elapsed = time.perf_counter() - start
+
+        if process.returncode != 0:
+            os.unlink(config_path)
+            raise RuntimeError(
+                f"Benchmark failed for {problem_name} / {backend} / {dimensions}D / {pop_size}:\n"
+                f"Executable: {executable}\n"
+                f"STDOUT:\n{process.stdout}\nSTDERR:\n{process.stderr}"
+            )
+
+        timings.append(elapsed)
+        last_stdout = process.stdout
 
     os.unlink(config_path)
-
-    if process.returncode != 0:
-        raise RuntimeError(
-            f"Benchmark failed for {problem_name} / {backend} / {dimensions}D / {pop_size}:\n"
-            f"STDOUT:\n{process.stdout}\nSTDERR:\n{process.stderr}"
-        )
-
-    return elapsed, process.stdout
+    median_elapsed = statistics.median(timings)
+    return median_elapsed, last_stdout, timings
 
 
 def main() -> None:
-    if not os.path.exists(EXECUTABLE):
-        raise FileNotFoundError(f"Executable not found: {EXECUTABLE}")
+    if not os.path.exists(EXECUTABLE_OPENMP):
+        raise FileNotFoundError(
+            f"Missing OpenMP executable: {EXECUTABLE_OPENMP}. "
+            "Set GALIB_EXECUTABLE_OPENMP to override."
+        )
+    if not os.path.exists(EXECUTABLE_CUDA):
+        raise FileNotFoundError(
+            f"Missing CUDA executable: {EXECUTABLE_CUDA}. "
+            "Set GALIB_EXECUTABLE_CUDA to override."
+        )
 
     ensure_dirs()
 
     results = []
     print("Starting CPU vs CUDA benchmark matrix...")
+    print(f"OpenMP executable: {EXECUTABLE_OPENMP}")
+    print(f"CUDA executable:   {EXECUTABLE_CUDA}")
 
     for problem_name in FUNCTIONS:
         for size in SIZES:
             for backend in ["OpenMP", "CUDA"]:
-                elapsed, stdout = run_case(
+                elapsed, stdout, timings = run_case(
                     problem_name,
                     backend,
                     size["dimensions"],
                     size["pop_size"],
                 )
                 best_line = next((line for line in stdout.splitlines() if "Best Fitness Found" in line), "")
-                print(f"{problem_name:9s} | {size['label']:6s} | {backend:6s} | {elapsed:8.4f}s | {best_line}")
+                print(
+                    f"{problem_name:9s} | {size['label']:6s} | {backend:6s} | "
+                    f"median={elapsed:8.4f}s | runs={[round(v, 4) for v in timings]} | {best_line}"
+                )
                 results.append(
                     {
                         "function": problem_name,
@@ -113,6 +183,8 @@ def main() -> None:
                         "pop_size": size["pop_size"],
                         "backend": backend,
                         "time_seconds": elapsed,
+                        "min_seconds": min(timings),
+                        "max_seconds": max(timings),
                         "best_line": best_line,
                     }
                 )
@@ -121,7 +193,17 @@ def main() -> None:
     with open(csv_path, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=["function", "size", "dimensions", "pop_size", "backend", "time_seconds", "best_line"],
+            fieldnames=[
+                "function",
+                "size",
+                "dimensions",
+                "pop_size",
+                "backend",
+                "time_seconds",
+                "min_seconds",
+                "max_seconds",
+                "best_line",
+            ],
         )
         writer.writeheader()
         writer.writerows(results)
