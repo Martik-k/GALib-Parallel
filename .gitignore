@@ -4,11 +4,14 @@ ga_example
 *.out
 *.app
 /build/
+/build-*/
 /build-cuda/
 /CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
+CTestTestfile.cmake
+compile_commands.json
 
 # === Logs ===
 log

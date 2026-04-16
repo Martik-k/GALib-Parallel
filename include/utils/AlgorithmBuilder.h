@@ -14,11 +14,14 @@
 #include "algorithms/cellular/CellularGAParams.h"
 #include "algorithms/differential-evolution/DifferentialEvolutionGA.h"
 #include "algorithms/differential-evolution/DEParams.h"
+#ifdef GALIB_HAS_MPI
 #include "algorithms/island/IslandGA.h"
 #include "algorithms/island/IslandConfig.h"
+#endif
 
 #include "core/FitnessFunction.h"
 
+#ifdef GALIB_HAS_MPI
 #include "algorithms/island/topology/Topology.h"
 #include "algorithms/island/topology/FullyConnectedTopology.h"
 #include "algorithms/island/topology/OneWayRingTopology.h"
@@ -27,6 +30,7 @@
 #include "algorithms/island/communication/communicators/MpiCommunicator.h"
 #include "algorithms/island/communication/buffers/CircularBuffer.h"
 #include <mpi.h>
+#endif
 
 namespace galib::utils {
 
@@ -149,6 +153,7 @@ namespace galib::utils {
          * @brief Builds an IslandGA instance from the root configuration.
          * This handles the creation of the Communicator, Serializer, Buffer, and Topology.
          */
+#ifdef GALIB_HAS_MPI
         static std::unique_ptr<IslandGA<GeneType>> buildIslandGA(
             const YAML::Node& config, 
             FitnessFunction<GeneType>& ff,
@@ -228,6 +233,7 @@ namespace galib::utils {
                 elitism
             );
         }
+#endif
     };
 
 } // namespace galib::utils
