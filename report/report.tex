@@ -99,9 +99,9 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
     This theorem mathematically proves that schemas which are short (fixed genes are close together), low-order (few fixed genes), and possess above-average fitness will grow exponentially in the population over successive generations. By combining these highly fit building blocks, the algorithm efficiently avoids local traps and converges toward the global maximum.
 
-    \section{Implemented Methodology}
+    \section{Algorithmic Models}
     
-    \subsection{Generational GA with Baseline Thread Parallelization}
+    \subsection{Generational Genetic Algorithm}
     First, we implemented a basic Real-Coded Genetic Algorithm (RCGA). It uses continuous variables (double type) to find the minimum of mathematical functions. 
 
     The whole algorithm is written using C++ templates. This is very useful because it makes the library flexible and easy to reuse. We can easily apply different data types or new fitness functions without changing the main code.
@@ -115,71 +115,29 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
         \item \textbf{Mutation:} We use Gaussian Mutation. It adds a small random number to the genes. This helps the algorithm make small steps to find the exact minimum, and sometimes big jumps to escape bad local zones.
     \end{itemize}
 
-    \section{Future Algorithmic Implementations}
-
-    To build a complete parallelization toolkit, the library still plans to add distributed and hybrid algorithms.
-
-    \subsection{Generational GA with CUDA Acceleration}
-    The CUDA backend is already implemented and benchmarked in this version of the project. It maps population evaluation, selection, crossover, and mutation to GPU execution so that larger populations can benefit from SIMT-style parallelism. The measured results show that this approach becomes beneficial once the workload is large enough to amortize GPU overhead.
-
-    \subsection{Island Model GA with MPI}
-        For cluster computers with distributed memory, the library will include an Island Model GA. Here, the main population is divided into isolated groups, or ``islands,'' that evolve on their own in separate processes. 
-
-        To stop these isolated groups from getting stuck in local minimums, a migration step is added. Every $N$ generations, islands exchange some of their best individuals depending on the network setup (like a ring or fully connected graph). The library will use the Message Passing Interface (MPI) to handle this communication between computers.
-
-    \subsection{Cellular GA}
-        In this model, the population is organized as a two-dimensional grid where each cell represents an individual solution. Instead of interacting with the entire population, individuals interact only with their local neighbors defined by the Von Neumann neighborhood (up, down, left, and right). This spatial structure helps maintain diversity in the population and reduces the risk of premature convergence.
-        
-        Since the population is arranged as a grid, different cells can be processed independently. This structure makes the algorithm suitable for parallel processing where multiple cells of the population can be evaluated and evolved simultaneously.
-
-    \subsection{Differential Evolution with Hybrid OpenMP/AVX}
-
+    \subsection{Differential Evolution}
     We plan to implement Differential Evolution (DE) for faster optimization of continuous variables. Unlike basic mutation, DE creates new solutions by calculating the mathematical difference between existing individuals in the population. This helps the algorithm adapt its search direction and converge much faster.
 
-    \section{Benchmark Problems and Demonstrations}
-    To compare the CPU and CUDA implementations, we executed the same genetic algorithm parameters on two benchmark functions: Sphere and Rastrigin. Each function was evaluated at three problem sizes that combine dimension and population growth: Small (2D, 250 individuals), Medium (10D, 2000 individuals), and Large (50D, 10000 individuals). All runs used 50 generations, tournament selection, single-point crossover, and Gaussian mutation.
+    \subsection{Island Model Genetic Algorithm}
+    For cluster computers with distributed memory, the library will include an Island Model GA. Here, the main population is divided into isolated groups, or ``islands,'' that evolve on their own in separate processes. 
 
-    The benchmark matrix was chosen to expose two important effects. First, the Sphere function is computationally cheaper and highlights kernel-launch overhead. Second, the Rastrigin function is more expensive and better represents the kind of multimodal landscapes where GPU parallelism can pay off.
+    To stop these isolated groups from getting stuck in local minimums, a migration step is added. Every $N$ generations, islands exchange some of their best individuals depending on the network setup (like a ring or fully connected graph). The library will use the Message Passing Interface (MPI) to handle this communication between computers.
 
-    \section{Experimental Setup}
-    The measurements were collected on the same machine using the compiled \texttt{ga\_example} binary. CPU runs used the OpenMP backend, while GPU runs used the CUDA backend activated by the YAML configuration field \texttt{algorithm.backend = CUDA}. Reported times are wall-clock durations for a full optimization run.
+    \subsection{Cellular Genetic Algorithm}
+    In this model, the population is organized as a two-dimensional grid where each cell represents an individual solution. Instead of interacting with the entire population, individuals interact only with their local neighbors defined by the Von Neumann neighborhood (up, down, left, and right). This spatial structure helps maintain diversity in the population and reduces the risk of premature convergence.
     
-    \section{Results and Discussion}
-    Table~\ref{tab:cuda_cpu_benchmark} summarizes the measured runtimes and the corresponding speedup defined as $S = T_{CPU} / T_{CUDA}$. Figure~\ref{fig:cuda_cpu_comparison} visualizes the same comparison.
+    Since the population is arranged as a grid, different cells can be processed independently. This structure makes the algorithm suitable for parallel processing where multiple cells of the population can be evaluated and evolved simultaneously.
 
-    \begin{table}[t]
-    \centering
-    \scriptsize
-    \begin{tabular}{llrrrrr}
-    \hline
-    Function & Size & Dim. & Pop. & CPU (s) & CUDA (s) & Speedup \\
-    \hline
-    Sphere & Small & 2 & 250 & 0.0103 & 2.0615 & 0.005 \\
-    Sphere & Medium & 10 & 2000 & 0.0239 & 0.1799 & 0.133 \\
-    Sphere & Large & 50 & 10000 & 0.3215 & 0.2161 & 1.490 \\
-    Rastrigin & Small & 2 & 250 & 0.0068 & 0.2474 & 0.027 \\
-    Rastrigin & Medium & 10 & 2000 & 0.0226 & 0.1915 & 0.118 \\
-    Rastrigin & Large & 50 & 10000 & 0.4618 & 0.2831 & 1.632 \\
-    \hline
-    \end{tabular}
-    \caption{CPU/OpenMP versus CUDA runtime comparison for the genetic algorithm. Speedup is computed as $T_{CPU} / T_{CUDA}$.}
-    \label{tab:cuda_cpu_benchmark}
-    \end{table}
+    \section{CUDA Acceleration}
+    The CUDA backend is already implemented and benchmarked in this version of the project. It maps population evaluation, selection, crossover, and mutation to GPU execution so that larger populations can benefit from SIMT-style parallelism. The measured results show that this approach becomes beneficial once the workload is large enough to amortize GPU overhead.
 
-    \begin{figure}[t]
-    \centering
-    \includegraphics[width=\linewidth]{../visualizations/images/cuda_cpu_comparison.png}
-    \caption{Runtime comparison between CPU/OpenMP and CUDA implementations across benchmark sizes.}
-    \label{fig:cuda_cpu_comparison}
-    \end{figure}
+    % \section{Benchmark Problems and Demonstrations}
 
-    The results show a clear crossover point. For Small and Medium problems, OpenMP is faster because the problem size is too small to amortize GPU launch and data-transfer overhead. For Large problems, CUDA becomes faster on both functions, which matches the expected behavior of SIMT hardware when the workload is large enough to occupy the GPU efficiently.
-
-    On Sphere, CUDA reaches a 1.49x speedup at the Large size. On Rastrigin, CUDA reaches a 1.63x speedup at the Large size. The difference between the two functions is informative: Rastrigin is more arithmetic-heavy due to its periodic oscillations, which increases computational intensity and improves GPU utilization relative to the cheaper Sphere benchmark.
-
-    These measurements support the implementation goal of the project: CPU/OpenMP remains the best choice for small optimization jobs, while CUDA is beneficial when the population and dimensionality are large enough to justify GPU parallelism. The overhead incurred by kernel launches and host-device data transfers becomes negligible when amortized over thousands of fitness function evaluations.
-
-    \section{Conclusion}
+    % \section{Experimental Setup}
+    
+    % \section{Results and Discussion}
+    
+    % \section{Conclusion}
     % This section will summarize the library's development progress, highlighting the capabilities of the implemented parallelization strategies across specific hardware constraints.
 
     \section*{Acknowledgment}
