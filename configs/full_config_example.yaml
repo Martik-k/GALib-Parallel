@@ -1,4 +1,4 @@
-# Comprehensive YAML Configuration for GALib-Parallel
+# YAML Configuration for GALib-Parallel
 # This file contains all possible parameters for all supported algorithms.
 
 algorithm:
@@ -48,3 +48,13 @@ algorithm:
     
   crossover:
     type: "single_point"     # Options: "single_point", "arithmetic", "uniform"
+
+
+output:
+  console:
+    enabled: disable
+    interval: 20
+  file:
+    enabled: true
+    interval: 1
+    path: "logs/evolution.csv"

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "core/GridPopulation.h"
+#include "core/Population.h"
 
 namespace galib {
 
@@ -13,7 +13,7 @@ public:
     virtual ~LocalSelection() = default;
 
     virtual const Individual<GeneType>& select(
-        const GridPopulation<GeneType>& population,
+        const Population<GeneType>& population,
         std::size_t row,
         std::size_t col
     ) const = 0;

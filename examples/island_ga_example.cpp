@@ -25,21 +25,17 @@ int main(int argc, char* argv[]) {
         }
 
         std::string config_path = (argc > 1) ? argv[1] : "configs/config_island.yaml";
-        YAML::Node full_config = YAML::LoadFile(config_path);
 
         constexpr std::size_t NUM_GENES = 2;
         constexpr std::size_t POPULATION_SIZE = 30;
 
         benchmark::RastriginFunction<double> fitness_fn(NUM_GENES, -5.12, 5.12);
 
-        const auto island_ga = utils::AlgorithmBuilder<double>::buildIslandGA(
-            full_config, 
+        const auto island_ga = utils::AlgorithmBuilder<double>::build(
+            config_path, 
             fitness_fn, 
             MPI_COMM_WORLD
         );
-
-        island_ga->enableConsoleOutput(true, 25);
-        island_ga->enableFileLogging("logs/island_evolution", 1);
 
         Population<double> population(POPULATION_SIZE, NUM_GENES);
         population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
