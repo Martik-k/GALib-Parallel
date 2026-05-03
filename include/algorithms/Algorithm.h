@@ -4,7 +4,8 @@
 #pragma once
 
 #include "core/Population.h"
-#include "utils/Loggers.h"
+#include "utils/ConsoleLogger.h"
+#include "utils/FileLogger.h"
 #include <memory>
 
 namespace galib {

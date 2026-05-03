@@ -1,9 +1,8 @@
-#ifndef LOGGERS_H
-#define LOGGERS_H
+#ifndef FILE_LOGGER_H
+#define FILE_LOGGER_H
 
 #pragma once
 
-#include <iostream>
 #include <fstream>
 #include <string>
 #include <filesystem>
@@ -11,27 +10,6 @@
 #include "core/Population.h"
 
 namespace galib::utils {
-
-    /**
-     * @brief Logger for printing optimization progress to the console.
-     */
-    template <typename GeneType>
-    class ConsoleLogger {
-    private:
-        std::size_t interval_m;
-
-    public:
-        explicit ConsoleLogger(std::size_t interval) : interval_m(interval) {}
-
-        void log(std::size_t gen, const Population<GeneType>& pop) {
-            if (interval_m > 0 && (gen % interval_m == 0 || gen == 0)) {
-                std::cout << "Generation " << gen 
-                          << " | Best Fitness: " << pop.getBestIndividual().getFitness() 
-                          << std::endl;
-            }
-        }
-    };
-
     /**
      * @brief Logger for writing optimization progress to a CSV file.
      */
@@ -43,7 +21,7 @@ namespace galib::utils {
         bool header_written_m = false;
 
     public:
-        FileLogger(const std::string& path, std::size_t interval) 
+        FileLogger(const std::string& path, const std::size_t interval)
             : path_m(path), interval_m(interval) {}
 
         void log(std::size_t gen, const Population<GeneType>& pop) {
@@ -84,7 +62,6 @@ namespace galib::utils {
             file.close();
         }
     };
-
 } // namespace galib::utils
 
-#endif // LOGGERS_H
+#endif // FILE_LOGGER_H

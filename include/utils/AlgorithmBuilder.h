@@ -40,7 +40,6 @@
 #endif
 
 namespace galib::utils {
-
     template <typename GeneType>
     class AlgorithmBuilder {
     private:
@@ -86,10 +85,10 @@ namespace galib::utils {
             MPI_Comm mpi_comm = MPI_COMM_NULL
         ) {
 #else
-        static std::unique_ptr<Algorithm<GeneType>> build(
-            const std::string& config_path,
-            FitnessFunction<GeneType>& ff
-        ) {
+            static std::unique_ptr<Algorithm<GeneType>> build(
+                const std::string& config_path,
+                FitnessFunction<GeneType>& ff
+            ) {
 #endif
             YAML::Node full_config = YAML::LoadFile(config_path);
             const auto node = full_config["algorithm"];
@@ -97,7 +96,7 @@ namespace galib::utils {
                 throw std::invalid_argument("Missing 'algorithm' section in config: " + config_path);
             }
 
-            std::string type = node["type"].as<std::string>("standard");
+            const auto type = node["type"].as<std::string>("standard");
             std::unique_ptr<Algorithm<GeneType>> algo;
 
             if (type == "standard") {
@@ -119,17 +118,17 @@ namespace galib::utils {
             // Setup Logging
             if (full_config["output"]) {
                 const auto out = full_config["output"];
-                
+
                 // Console Logging
                 if (out["console"] && out["console"]["enabled"].as<bool>(false)) {
-                    std::size_t interval = out["console"]["interval"].as<std::size_t>(1);
+                    auto interval = out["console"]["interval"].as<std::size_t>(1);
                     algo->enableConsoleLogging(interval);
                 }
 
                 // File Logging
                 if (out["file"] && out["file"]["enabled"].as<bool>(false)) {
-                    std::string path = out["file"]["path"].as<std::string>("evolution.csv");
-                    std::size_t interval = out["file"]["interval"].as<std::size_t>(1);
+                    auto path = out["file"]["path"].as<std::string>("evolution.csv");
+                    auto interval = out["file"]["interval"].as<std::size_t>(1);
                     algo->enableFileLogging(path, interval);
                 }
             }
@@ -141,7 +140,7 @@ namespace galib::utils {
          * @brief Builds a StandardGA instance from the root configuration.
          */
         static std::unique_ptr<Algorithm<GeneType>> buildStandardGA(
-            const YAML::Node& config, 
+            const YAML::Node& config,
             FitnessFunction<GeneType>& ff
         ) {
             const auto node = config["algorithm"];
@@ -193,7 +192,7 @@ namespace galib::utils {
          * @brief Builds a CellularGA instance from the root configuration.
          */
         static std::unique_ptr<Algorithm<GeneType>> buildCellularGA(
-            const YAML::Node& config, 
+            const YAML::Node& config,
             FitnessFunction<GeneType>& ff
         ) {
             const auto node = config["algorithm"];
@@ -201,7 +200,7 @@ namespace galib::utils {
             params.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
-            
+
             if (node["cellular"]) {
                 params.rows = node["cellular"]["rows"].as<std::size_t>(Defaults::Cellular::ROWS);
                 params.cols = node["cellular"]["cols"].as<std::size_t>(Defaults::Cellular::COLS);
@@ -211,7 +210,7 @@ namespace galib::utils {
             // NOTE: CellularGA currently does not support the Algorithm<GeneType> interface
             // because it still uses GridPopulation instead of Population.
             // This will be fixed in the future.
-            
+
             /*
             auto selection = OperatorBuilder<GeneType>::buildLocalSelection(node["selection"]);
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
@@ -255,7 +254,7 @@ namespace galib::utils {
                 params.f_weight,
                 params.crossover_rate,
                 params.max_generations
-            ); 
+            );
         }
 
         /**
@@ -263,7 +262,7 @@ namespace galib::utils {
          */
 #ifdef GALIB_HAS_MPI
         static std::unique_ptr<Algorithm<GeneType>> buildIslandGA(
-            const YAML::Node& config, 
+            const YAML::Node& config,
             FitnessFunction<GeneType>& ff,
             MPI_Comm mpi_comm
         ) {
@@ -277,19 +276,18 @@ namespace galib::utils {
             std::string topology_type = Defaults::Island::TOPOLOGY;
 
             if (node["island"]) {
-                island_config.migration_interval = node["island"]["migration_interval"].as<std::size_t>(Defaults::Island::MIGRATION_INTERVAL);
+                island_config.migration_interval = node["island"]["migration_interval"].as<std::size_t>(
+                    Defaults::Island::MIGRATION_INTERVAL);
                 island_config.migration_size = node["island"]["migration_size"].as<std::size_t>(Defaults::Island::MIGRATION_SIZE);
                 island_config.immigration_quota = node["island"]["immigration_quota"].as<double>(Defaults::Island::IMMIGRATION_QUOTA);
                 buffer_capacity = node["island"]["buffer_capacity"].as<std::size_t>(Defaults::Island::BUFFER_CAPACITY);
                 topology_type = node["island"]["topology"].as<std::string>(Defaults::Island::TOPOLOGY);
             }
 
-            // 1. Setup Genetic Operators
             auto selection = OperatorBuilder<GeneType>::buildSelection(node["selection"]);
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
-            
-            // 2. Setup Migration Operators
+
             std::unique_ptr<DemeReplacer<GeneType>> replacer;
             if (node["island"] && node["island"]["replacer"]) {
                 replacer = OperatorBuilder<GeneType>::buildDemeReplacer(node["island"]["replacer"]);
@@ -304,16 +302,15 @@ namespace galib::utils {
                 selector = std::make_unique<ElitismSelector<GeneType>>();
             }
 
-            // 3. Setup Infrastructure
             auto serializer = std::make_unique<BinarySerializer<GeneType>>();
             std::size_t max_payload = serializer->getSerializedSize(island_config.migration_size, ff.size());
             auto comm = std::make_unique<MpiCommunicator<GeneType>>(*serializer, max_payload, mpi_comm);
             auto buffer = std::make_unique<CircularBuffer<GeneType>>(buffer_capacity, island_config.migration_size);
-            
+
             std::unique_ptr<const Topology> topology;
             int world_size;
             MPI_Comm_size(mpi_comm, &world_size);
-            
+
             if (topology_type == "fully_connected") {
                 topology = std::make_unique<FullyConnectedTopology>(world_size);
             } else if (topology_type == "one_way_ring") {
@@ -327,23 +324,22 @@ namespace galib::utils {
             bool elitism = node["use_elitism"].as<bool>(true);
 
             return std::make_unique<IslandGA<GeneType>>(
-                ff, 
-                std::move(selection), 
-                std::move(mutation), 
-                std::move(crossover), 
-                std::move(replacer), 
-                std::move(selector), 
-                std::move(buffer), 
-                std::move(comm), 
-                std::move(topology), 
+                ff,
+                std::move(selection),
+                std::move(mutation),
+                std::move(crossover),
+                std::move(replacer),
+                std::move(selector),
+                std::move(buffer),
+                std::move(comm),
+                std::move(topology),
                 std::move(serializer),
-                island_config, 
+                island_config,
                 elitism
             );
         }
 #endif
     };
-
 } // namespace galib::utils
 
 #endif // ALGORITHM_BUILDER_H
