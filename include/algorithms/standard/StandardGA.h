@@ -16,10 +16,12 @@
 #include <omp.h>
 #include <filesystem>
 
+#include "algorithms/Algorithm.h"
+
 namespace galib {
 
     template <typename GeneType = double>
-    class StandardGA {
+    class StandardGA : public Algorithm<GeneType> {
     private:
         FitnessFunction<GeneType>& fitness_function_m;
         std::unique_ptr<Selection<GeneType>> selection_m;
@@ -59,7 +61,7 @@ namespace galib {
 
         void enableLogging(const std::string& filename) { log_file_m = filename; }
 
-        void run(Population<GeneType>& population) {
+        void run(Population<GeneType>& population) override {
 			std::ofstream log;
             if (!log_file_m.empty()) {
                 std::filesystem::path p(log_file_m);
