@@ -47,7 +47,7 @@ namespace galib {
          * @brief Enables logging to the console.
          * @param interval The frequency of logging (every N generations).
          */
-        virtual void enableConsoleLogging(std::size_t interval) {
+        virtual void enableConsoleLogging(const std::size_t interval) {
             console_logger_m = std::make_unique<utils::ConsoleLogger<GeneType>>(interval);
         }
 

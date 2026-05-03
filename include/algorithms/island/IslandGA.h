@@ -36,10 +36,10 @@ namespace galib {
         std::unique_ptr<DemeReplacer<GeneType>> deme_replacer_m;
         std::unique_ptr<DemeSelector<GeneType>> deme_selector_m;
         
-        std::unique_ptr<MigrationBuffer<GeneType>> migration_buffer_m;
-        std::unique_ptr<Communicator<GeneType>> communicator_m;
+        std::unique_ptr<internal::MigrationBuffer<GeneType>> migration_buffer_m;
+        std::unique_ptr<internal::Communicator<GeneType>> communicator_m;
         std::unique_ptr<const Topology> topology_m;
-        std::unique_ptr<Serializer<GeneType>> serializer_m;
+        std::unique_ptr<internal::Serializer<GeneType>> serializer_m;
 
         const IslandGAParams config_m;
 
@@ -153,10 +153,10 @@ namespace galib {
             std::unique_ptr<Crossover<GeneType>> cs,
             std::unique_ptr<DemeReplacer<GeneType>> replacer,
             std::unique_ptr<DemeSelector<GeneType>> selector,
-            std::unique_ptr<MigrationBuffer<GeneType>> buffer,
-            std::unique_ptr<Communicator<GeneType>> comm,
+            std::unique_ptr<internal::MigrationBuffer<GeneType>> buffer,
+            std::unique_ptr<internal::Communicator<GeneType>> comm,
             std::unique_ptr<const Topology> topology,
-            std::unique_ptr<Serializer<GeneType>> serializer,
+            std::unique_ptr<internal::Serializer<GeneType>> serializer,
             const IslandGAParams& config,
             const bool elitism = true
         ) : fitness_function_m(ff), 

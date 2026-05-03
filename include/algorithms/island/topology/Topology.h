@@ -8,17 +8,19 @@
 
 namespace galib {
 
-    struct NodeLinks {
-        std::vector<std::size_t> neighbors_out;
-        std::vector<std::size_t> neighbors_in;
-    };
+    namespace internal {
+        struct NodeLinks {
+            std::vector<std::size_t> neighbors_out;
+            std::vector<std::size_t> neighbors_in;
+        };
+    }
 
     class Topology {
     private:
         std::size_t num_nodes_m;
 
     protected:
-        std::size_t getNumNodes() const { return num_nodes_m; }
+        [[nodiscard]] std::size_t getNumNodes() const { return num_nodes_m; }
 
     public:
         virtual ~Topology() = default;
@@ -29,7 +31,7 @@ namespace galib {
             }
         };
 
-        virtual NodeLinks getLinks(std::size_t node) const = 0;
+        [[nodiscard]] virtual internal::NodeLinks getLinks(std::size_t node) const = 0;
     };
 
 }

@@ -302,10 +302,10 @@ namespace galib::utils {
                 selector = std::make_unique<ElitismSelector<GeneType>>();
             }
 
-            auto serializer = std::make_unique<BinarySerializer<GeneType>>();
+            auto serializer = std::make_unique<internal::BinarySerializer<GeneType>>();
             std::size_t max_payload = serializer->getSerializedSize(island_config.migration_size, ff.size());
-            auto comm = std::make_unique<MpiCommunicator<GeneType>>(*serializer, max_payload, mpi_comm);
-            auto buffer = std::make_unique<CircularBuffer<GeneType>>(buffer_capacity, island_config.migration_size);
+            auto comm = std::make_unique<internal::MpiCommunicator<GeneType>>(*serializer, max_payload, mpi_comm);
+            auto buffer = std::make_unique<internal::CircularBuffer<GeneType>>(buffer_capacity, island_config.migration_size);
 
             std::unique_ptr<const Topology> topology;
             int world_size;

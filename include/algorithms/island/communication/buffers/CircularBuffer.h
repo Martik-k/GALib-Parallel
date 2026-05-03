@@ -10,7 +10,7 @@
 #include <mutex>
 #include <atomic>
 
-namespace galib {
+namespace galib::internal {
     template <typename GeneType>
     class CircularBuffer : public MigrationBuffer<GeneType> {
     private:
