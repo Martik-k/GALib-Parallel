@@ -11,8 +11,8 @@ namespace galib {
     public:
         explicit FullyConnectedTopology(const std::size_t num_nodes) : Topology(num_nodes) {}
 
-        NodeLinks getLinks(const std::size_t node) const override {
-            NodeLinks links;
+        internal::NodeLinks getLinks(const std::size_t node) const override {
+            internal::NodeLinks links;
             const std::size_t num_nodes = getNumNodes();
             links.neighbors_out.reserve(num_nodes - 1);
             links.neighbors_in.reserve(num_nodes - 1);

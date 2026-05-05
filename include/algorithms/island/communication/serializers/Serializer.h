@@ -7,7 +7,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace galib {
+namespace galib::internal {
     template <typename GeneType>
     class Serializer {
     public:

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <format>
 #include <mpi.h>
 #include <yaml-cpp/yaml.h>
 
@@ -24,22 +25,18 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        std::string config_path = (argc > 1) ? argv[1] : "configs/config_island.yaml";
-        YAML::Node full_config = YAML::LoadFile(config_path);
+        const std::string config_path = (argc > 1) ? argv[1] : "configs/config_island.yaml";
 
         constexpr std::size_t NUM_GENES = 2;
         constexpr std::size_t POPULATION_SIZE = 30;
 
         benchmark::RastriginFunction<double> fitness_fn(NUM_GENES, -5.12, 5.12);
 
-        const auto island_ga = utils::AlgorithmBuilder<double>::buildIslandGA(
-            full_config, 
-            fitness_fn, 
+        const auto island_ga = utils::AlgorithmBuilder<double>::build(
+            config_path,
+            fitness_fn,
             MPI_COMM_WORLD
         );
-
-        island_ga->enableConsoleOutput(true, 25);
-        island_ga->enableFileLogging("logs/island_evolution", 1);
 
         Population<double> population(POPULATION_SIZE, NUM_GENES);
         population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
@@ -49,13 +46,15 @@ int main(int argc, char* argv[]) {
             std::cout << "Configuration: " << config_path << std::endl;
         }
 
+        island_ga->enableConsoleLogging(10);
+        island_ga->enableFileLogging(std::format("logs/island_ga_rank{}", rank), 1);
+
         island_ga->run(population);
 
         if (rank == 0) {
             const auto& best = population.getBestIndividual();
             std::cout << "Optimization finished. Global Best Fitness: " << best.getFitness() << std::endl;
         }
-
     } catch (const std::exception& e) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);

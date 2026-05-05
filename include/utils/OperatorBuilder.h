@@ -31,15 +31,14 @@
 #include "algorithms/island/migration/selectors/ElitismSelector.h"
 
 namespace galib::utils {
-
     template <typename GeneType = double>
     class OperatorBuilder {
     public:
         static std::unique_ptr<Selection<GeneType>> buildSelection(const YAML::Node& node) {
-            std::string type = node["type"].as<std::string>("tournament");
+            const auto type = node["type"].as<std::string>("tournament");
 
             if (type == "tournament") {
-                std::size_t size = node["tournament_size"].as<std::size_t>(3);
+                const auto size = node["tournament_size"].as<std::size_t>(3);
                 return std::make_unique<TournamentSelection<GeneType>>(size);
             }
 
@@ -47,7 +46,7 @@ namespace galib::utils {
         }
 
         static std::unique_ptr<LocalSelection<GeneType>> buildLocalSelection(const YAML::Node& node) {
-            std::string type = node["type"].as<std::string>("best_neighbor");
+            const auto type = node["type"].as<std::string>("best_neighbor");
 
             if (type == "best_neighbor") {
                 return std::make_unique<BestNeighborSelection<GeneType>>();
@@ -57,10 +56,10 @@ namespace galib::utils {
         }
 
         static std::unique_ptr<Mutation<GeneType>> buildMutation(const YAML::Node& node, GeneType lb = 0, GeneType ub = 0) {
-            std::string type = node["type"].as<std::string>("gaussian");
+            const auto type = node["type"].as<std::string>("gaussian");
 
             if (type == "gaussian") {
-                double sigma = node["sigma"].as<double>(0.1);
+                auto sigma = node["sigma"].as<double>(0.1);
                 return std::make_unique<GaussianMutation<GeneType>>(sigma);
             } else if (type == "uniform") {
                 return std::make_unique<UniformMutation<GeneType>>(lb, ub);
@@ -72,7 +71,7 @@ namespace galib::utils {
         }
 
         static std::unique_ptr<Crossover<GeneType>> buildCrossover(const YAML::Node& node) {
-            std::string type = node["type"].as<std::string>("single_point");
+            const auto type = node["type"].as<std::string>("single_point");
 
             if (type == "single_point") {
                 return std::make_unique<SinglePointCrossover<GeneType>>();
@@ -86,7 +85,7 @@ namespace galib::utils {
         }
 
         static std::unique_ptr<DemeReplacer<GeneType>> buildDemeReplacer(const YAML::Node& node) {
-            std::string type = node["type"].as<std::string>("worst");
+            const auto type = node["type"].as<std::string>("worst");
 
             if (type == "worst") {
                 return std::make_unique<WorstReplacer<GeneType>>();
@@ -96,7 +95,7 @@ namespace galib::utils {
         }
 
         static std::unique_ptr<DemeSelector<GeneType>> buildDemeSelector(const YAML::Node& node) {
-            std::string type = node["type"].as<std::string>("elitism");
+            const auto type = node["type"].as<std::string>("elitism");
 
             if (type == "elitism") {
                 return std::make_unique<ElitismSelector<GeneType>>();
@@ -105,8 +104,6 @@ namespace galib::utils {
             throw std::invalid_argument("Unknown DemeSelector type: " + type);
         }
     };
-
-
 } // namespace galib::utils
 
 #endif // OPERATOR_BUILDER_H

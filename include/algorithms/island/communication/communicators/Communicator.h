@@ -8,7 +8,7 @@
 #include <vector>
 #include <cstddef>
 
-namespace galib {
+namespace galib::internal {
 
     template <typename GeneType>
     class Communicator {

@@ -5,15 +5,15 @@
 
 #include <cstddef>
 
+#include "algorithms/AlgorithmConfig.h"
+
 namespace galib {
 
     /**
      * @brief Parameters for the Differential Evolution Genetic Algorithm.
      */
-    struct DEParams {
+    struct DEParams : public AlgorithmConfig {
         double f_weight = 0.8;
-        double cr_rate = 0.9;         // Maps to crossover_rate in YAML
-        std::size_t max_generations = 100;
     };
 
 } // namespace galib

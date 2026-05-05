@@ -14,9 +14,9 @@
 #include "algorithms/island/communication/buffers/MigrationBuffer.h"
 #include "algorithms/island/communication/communicators/Communicator.h"
 #include "algorithms/island/communication/serializers/Serializer.h"
-#include "algorithms/island/IslandConfig.h"
+#include "algorithms/island/IslandGAParams.h"
 #include "algorithms/island/topology/Topology.h"
-#include "utils/StateLogger.h"
+#include "algorithms/Algorithm.h"
 
 #include <iostream>
 #include <random>
@@ -26,7 +26,7 @@
 
 namespace galib {
     template <typename GeneType = double>
-    class IslandGA {
+    class IslandGA : public Algorithm<GeneType> {
     private:
         FitnessFunction<GeneType>& fitness_function_m;
         
@@ -36,17 +36,12 @@ namespace galib {
         std::unique_ptr<DemeReplacer<GeneType>> deme_replacer_m;
         std::unique_ptr<DemeSelector<GeneType>> deme_selector_m;
         
-        std::unique_ptr<MigrationBuffer<GeneType>> migration_buffer_m;
-        std::unique_ptr<Communicator<GeneType>> communicator_m;
+        std::unique_ptr<internal::MigrationBuffer<GeneType>> migration_buffer_m;
+        std::unique_ptr<internal::Communicator<GeneType>> communicator_m;
         std::unique_ptr<const Topology> topology_m;
-        std::unique_ptr<Serializer<GeneType>> serializer_m;
+        std::unique_ptr<internal::Serializer<GeneType>> serializer_m;
 
-        const IslandConfig config_m;
-
-        std::unique_ptr<utils::StateLogger<GeneType>> logger_m;
-        std::size_t log_interval_m = 0;
-        bool verbose_m = false;
-        std::size_t console_log_interval_m = 0;
+        const IslandGAParams config_m;
 
         bool use_elitism_m;
 
@@ -150,14 +145,6 @@ namespace galib {
             }
         }
 
-        void logState(const Population<GeneType>& population, const std::size_t generation_idx) const {
-            if (verbose_m && communicator_m->getRank() == 0) {
-                std::cout << "Generation " << (generation_idx + 1)
-                          << " | Global Best Fitness: " << population.getBestIndividual().getFitness()
-                          << std::endl;
-            }
-        }
-
     public:
         IslandGA(
             FitnessFunction<GeneType>& ff,
@@ -166,11 +153,11 @@ namespace galib {
             std::unique_ptr<Crossover<GeneType>> cs,
             std::unique_ptr<DemeReplacer<GeneType>> replacer,
             std::unique_ptr<DemeSelector<GeneType>> selector,
-            std::unique_ptr<MigrationBuffer<GeneType>> buffer,
-            std::unique_ptr<Communicator<GeneType>> comm,
+            std::unique_ptr<internal::MigrationBuffer<GeneType>> buffer,
+            std::unique_ptr<internal::Communicator<GeneType>> comm,
             std::unique_ptr<const Topology> topology,
-            std::unique_ptr<Serializer<GeneType>> serializer,
-            const IslandConfig& config,
+            std::unique_ptr<internal::Serializer<GeneType>> serializer,
+            const IslandGAParams& config,
             const bool elitism = true
         ) : fitness_function_m(ff), 
             selection_m(std::move(sel)), 
@@ -185,17 +172,7 @@ namespace galib {
             config_m(config), 
             use_elitism_m(elitism) {}
 
-        void enableConsoleOutput(const bool enabled, const std::size_t interval) {
-            verbose_m = enabled;
-            console_log_interval_m = interval;
-        }
-
-        void enableFileLogging(const std::string& directory, const std::size_t interval) {
-            logger_m = std::make_unique<utils::StateLogger<GeneType>>(directory, communicator_m->getRank());
-            log_interval_m = interval;
-        }
-
-        void run(Population<GeneType>& population) {
+        void run(Population<GeneType>& population) override {
             if (population.empty()) { return; }
 
             const std::size_t population_size = population.size();
@@ -207,12 +184,9 @@ namespace galib {
 
             initializeCommunication();
 
-            if (logger_m && log_interval_m > 0) {
-                logger_m->writeHeader(num_genes);
-                logger_m->log(population, 0);
-            }
-
             for (std::size_t generation_idx = 0; generation_idx < config_m.max_generations; ++generation_idx) {
+                this->notifyLoggers(generation_idx, population);
+
                 handleIncomingMigrants(population);
 
                 generateNextGeneration(population, new_population);
@@ -222,15 +196,9 @@ namespace galib {
                 evaluatePopulation(population);
 
                 handleOutgoingMigrants(population, generation_idx);
-
-                if (logger_m && log_interval_m > 0 && (generation_idx + 1) % log_interval_m == 0) {
-                    logger_m->log(population, generation_idx + 1);
-                }
-
-                if ((generation_idx + 1) % console_log_interval_m == 0 || generation_idx == 0) {
-                    logState(population, generation_idx);
-                }
             }
+
+            this->notifyLoggers(config_m.max_generations, population);
 
             finalizeCommunication();
 
