@@ -48,6 +48,7 @@ namespace galib::utils {
             static constexpr double CROSSOVER_RATE = 0.8;
             static constexpr std::size_t MAX_GENERATIONS = 100;
             static constexpr bool USE_ELITISM = true;
+            static constexpr std::size_t THREADS = 1;
 
             struct Standard {
                 static constexpr bool USE_CUDA = false;
@@ -149,6 +150,7 @@ namespace galib::utils {
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
             params.use_elitism = node["use_elitism"].as<bool>(Defaults::USE_ELITISM);
+            params.threads = node["threads"].as<std::size_t>(Defaults::THREADS);
 
             bool use_cuda = Defaults::Standard::USE_CUDA;
             if (node["standard"]) {
@@ -184,7 +186,8 @@ namespace galib::utils {
                 params.mutation_rate,
                 params.crossover_rate,
                 params.max_generations,
-                params.use_elitism
+                params.use_elitism,
+                params.threads
             );
         }
 

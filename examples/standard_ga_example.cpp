@@ -30,24 +30,20 @@ int main(int argc, char* argv[]) {
         benchmark::RastriginFunction<double> fitness_fn(num_genes, -5.12, 5.12);
 
         const std::size_t pop_size = algorithm["pop_size"].as<std::size_t>(50);
-        const std::string log_file =
-            full_config["output"] ? full_config["output"]["log_file"].as<std::string>("") : "";
+
+        const auto algo = utils::AlgorithmBuilder<double>::build(config_path, fitness_fn);
 
         Population<double> population(pop_size, num_genes);
         population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
-
-        const auto standard_ga =
-            utils::AlgorithmBuilder<double>::buildStandardGA(full_config, fitness_fn);
-
-        if (!log_file.empty()) {
-            standard_ga->enableLogging(log_file);
-        }
 
         std::cout << "Starting Standard GA..." << std::endl;
         std::cout << "Configuration: " << config_path << std::endl;
         std::cout << "Population size: " << pop_size << std::endl;
 
-        standard_ga->run(population);
+        algo->enableConsoleLogging(50);
+        algo->enableFileLogging("logs/evolution.csv", 1);
+
+        algo->run(population);
 
         const auto& best = population.getBestIndividual();
         std::cout << "Optimization finished. Best Fitness: " << best.getFitness() << std::endl;
