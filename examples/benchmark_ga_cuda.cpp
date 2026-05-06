@@ -1,4 +1,5 @@
 #include <chrono>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -116,8 +117,24 @@ static Result runGPU(FitnessFunction<double>& ff,
 }
 #endif
 
+static std::ofstream g_csv;
+
+static void csvRow(const std::string& label, const std::string& eval_type,
+                   int pop, int dims, const Result& cpu, const Result* gpu) {
+    if (!g_csv.is_open()) return;
+    double speedup = gpu ? cpu.wall_ms / gpu->wall_ms : 1.0;
+    double gpu_ms  = gpu ? gpu->wall_ms  : 0.0;
+    double gpu_fit = gpu ? gpu->best_fitness : 0.0;
+    g_csv << label << "," << eval_type << "," << pop << "," << dims << ","
+          << std::fixed << std::setprecision(3)
+          << cpu.wall_ms << "," << cpu.best_fitness << ","
+          << gpu_ms << "," << gpu_fit << ","
+          << speedup << "\n";
+}
+
 static void printRow(const std::string& label, int pop, int dims,
-                     const Result& cpu, const Result* gpu = nullptr) {
+                     const Result& cpu, const Result* gpu = nullptr,
+                     const std::string& eval_type = "cpu_only") {
     std::cout << std::left  << std::setw(10) << label
               << std::right << std::setw(7)  << pop
               << std::setw(6)  << dims
@@ -132,12 +149,23 @@ static void printRow(const std::string& label, int pop, int dims,
     }
 #endif
     std::cout << "\n";
+    csvRow(label, eval_type, pop, dims, cpu, gpu);
 }
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
-int main() {
+int main(int argc, char* argv[]) {
     constexpr int GENERATIONS = 300;
+
+    // Optional CSV output path (e.g. benchmark_ga_cuda --csv results.csv)
+    for (int i = 1; i < argc - 1; ++i) {
+        if (std::string(argv[i]) == "--csv") {
+            g_csv.open(argv[i + 1]);
+            if (g_csv.is_open())
+                g_csv << "function,eval_type,pop_size,dims,cpu_ms,cpu_fitness,"
+                         "gpu_ms,gpu_fitness,speedup\n";
+        }
+    }
 
     std::cout << "\n=== GALib Benchmark: StandardGA (CPU) vs StandardGACUDA (GPU) ===\n";
     std::cout << "Fitness: Rastrigin | Generations: " << GENERATIONS << "\n\n";
@@ -177,9 +205,9 @@ int main() {
         Result cpu = runCPU(ff, c.pop, c.dims, GENERATIONS);
 #ifdef GALIB_WITH_CUDA
         Result gpu = runGPU(ff, c.pop, c.dims, GENERATIONS);
-        printRow("Rastrigin", c.pop, c.dims, cpu, &gpu);
+        printRow("Rastrigin", c.pop, c.dims, cpu, &gpu, "gpu_kernel");
 #else
-        printRow("Rastrigin", c.pop, c.dims, cpu);
+        printRow("Rastrigin", c.pop, c.dims, cpu, nullptr, "cpu_only");
 #endif
     }
 
@@ -201,7 +229,7 @@ int main() {
         benchmark::SphereFunction<double> ff(c.dims, -5.12, 5.12);
         Result cpu = runCPU(ff, c.pop, c.dims, GENERATIONS);
         Result gpu = runGPU(ff, c.pop, c.dims, GENERATIONS);
-        printRow("Sphere", c.pop, c.dims, cpu, &gpu);
+        printRow("Sphere", c.pop, c.dims, cpu, &gpu, "gpu_kernel");
     }
     std::cout << std::string(76, '-') << "\n";
     std::cout << "\nNote: Rastrigin uses CPU callback (virtual evaluate). "
@@ -224,7 +252,7 @@ int main() {
         AckleyFunction<double> ff(c.dims);
         Result cpu = runCPU(ff, c.pop, c.dims, GENERATIONS);
         Result gpu = runGPU(ff, c.pop, c.dims, GENERATIONS);
-        printRow("Ackley", c.pop, c.dims, cpu, &gpu);
+        printRow("Ackley", c.pop, c.dims, cpu, &gpu, "cpu_callback");
     }
     std::cout << std::string(76, '-') << "\n";
     std::cout << "\nAckley has no GPU kernel: StandardGACUDA uses the CPU callback for evaluation\n"
@@ -233,7 +261,7 @@ int main() {
     for (auto& c : cases) {
         AckleyFunction<double> ff(c.dims);
         Result cpu = runCPU(ff, c.pop, c.dims, GENERATIONS);
-        printRow("Ackley", c.pop, c.dims, cpu);
+        printRow("Ackley", c.pop, c.dims, cpu, nullptr, "cpu_only");
     }
 #endif
 
