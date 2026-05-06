@@ -10,6 +10,14 @@
 
 namespace galib {
 
+    /**
+     * @brief Performs boundary mutation.
+     * 
+     * Replaces a gene with either the lower or upper bound of the search space.
+     * This is useful for exploring the edges of the feasible region.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType>
     class BoundaryMutation : public Mutation<GeneType> {
     private:
@@ -17,9 +25,19 @@ namespace galib {
         GeneType upper_m;
 
     public:
+        /**
+         * @brief Constructs a boundary mutation operator.
+         * @param lower The lower bound of the search space.
+         * @param upper The upper bound of the search space.
+         */
         BoundaryMutation(GeneType lower, GeneType upper)
             : lower_m(lower), upper_m(upper) {}
 
+        /**
+         * @brief Randomly resets genes to @p lower or @p upper bounds.
+         * @param individual    Target individual.
+         * @param mutation_rate Probability per gene.
+         */
         void mutate(Individual<GeneType>& individual, double mutation_rate) override {
             if (mutation_rate <= 0.0) return;
 

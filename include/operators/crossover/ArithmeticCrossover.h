@@ -10,9 +10,26 @@
 
 namespace galib {
 
+    /**
+     * @brief Performs arithmetic (convex) crossover.
+     * 
+     * Children are produced as a linear combination of parent genes:
+     * Child1 = alpha * Parent1 + (1 - alpha) * Parent2
+     * Child2 = alpha * Parent2 + (1 - alpha) * Parent1
+     * where alpha is a random value in [0, 1] chosen once per crossover event.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType>
     class ArithmeticCrossover : public Crossover<GeneType> {
     public:
+        /**
+         * @brief Produces children via linear interpolation of parent genes.
+         * @param parent1 First parent.
+         * @param parent2 Second parent.
+         * @return Pair of children.
+         * @throws std::invalid_argument if parents have different genotype sizes.
+         */
         std::pair<Individual<GeneType>, Individual<GeneType>>
         crossover(const Individual<GeneType>& parent1,
                   const Individual<GeneType>& parent2) override {

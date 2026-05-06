@@ -12,11 +12,26 @@
 
 namespace galib {
 
+    /**
+     * @brief Performs traditional single-point crossover.
+     * 
+     * A random crossover point is chosen, and the genetic material after 
+     * that point is swapped between the two parents to create two children.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType>
     class SinglePointCrossover : public Crossover<GeneType> {
     public:
         SinglePointCrossover() = default;
 
+        /**
+         * @brief Swaps genotype segments at a random crossover point.
+         * @param parent1 First parent.
+         * @param parent2 Second parent.
+         * @return Pair of children.
+         * @throws std::invalid_argument if parents have different genotype sizes.
+         */
         std::pair<Individual<GeneType>, Individual<GeneType>> crossover (
             const Individual<GeneType>& parent1, const Individual<GeneType>& parent2) override {
 

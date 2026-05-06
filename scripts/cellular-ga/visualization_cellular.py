@@ -18,8 +18,6 @@ PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 
 if os.path.isabs(config_name) or config_name.startswith('..'):
     CONFIG_PATH = config_name
-elif config_name.startswith('configs/'):
-    CONFIG_PATH = os.path.join(PROJECT_ROOT, config_name)
 else:
     CONFIG_PATH = os.path.join(PROJECT_ROOT, 'configs', config_name)
 
@@ -30,11 +28,15 @@ with open(CONFIG_PATH, 'r') as f:
     config = yaml.safe_load(f)
 
 prob_cfg = config['problem']
+alg_cfg = config['algorithm']
+cell_cfg = alg_cfg.get('cellular', {})
 out_cfg = config['output']
 
 name = prob_cfg['name']
 lb = prob_cfg['lower_bound']
 ub = prob_cfg['upper_bound']
+rows = cell_cfg.get('rows', 0)
+cols = cell_cfg.get('cols', 0)
 log_filename = out_cfg['log_file']
 
 CSV_PATH = os.path.join(PROJECT_ROOT, 'build', log_filename)
@@ -77,33 +79,25 @@ ax2d.axhline(0, color='white', linewidth=0.8, alpha=0.5)
 ax2d.axvline(0, color='white', linewidth=0.8, alpha=0.5)
 ax2d.grid(True, color='gray', linestyle='--', alpha=0.3)
 
-# === ОПТИМІЗАЦІЯ 1: Групування даних (швидкий доступ) ===
-grouped_data = data.groupby('generation')
-
 def update(gen):
-    if gen not in grouped_data.groups:
+    curr = data[data['generation'] == gen]
+    if curr.empty:
         return scatter3d, scatter2d
 
-    curr = grouped_data.get_group(gen)
-    xs, ys = curr['x'].values, curr['y'].values
+    xs, ys = curr['gene_0'].values, curr['gene_1'].values
     zs = target_func(xs, ys)
 
     scatter3d._offsets3d = (xs, ys, zs)
     scatter2d.set_offsets(np.c_[xs, ys])
 
-    fig.suptitle(f"Differential Evolution: {name}\nGeneration: {gen} | Bounds: [{lb}, {ub}]", fontsize=16)
+    fig.suptitle(
+        f"Cellular GA Evolution: {name}\nGeneration: {gen} | Grid: {rows}x{cols} | Bounds: [{lb}, {ub}]",
+        fontsize=16
+    )
     return scatter3d, scatter2d
 
 total_frames = int(data['generation'].max()) + 1
-
-# === ОПТИМІЗАЦІЯ 2: Frame Skipping (кожен 5-й кадр) ===
-FRAME_STEP = 5
-frame_sequence = list(range(0, total_frames, FRAME_STEP))
-# Гарантуємо, що останнє покоління обов'язково потрапить на відео
-if frame_sequence[-1] != total_frames - 1:
-    frame_sequence.append(total_frames - 1)
-
-ani = FuncAnimation(fig, update, frames=frame_sequence, interval=150, blit=False)
+ani = FuncAnimation(fig, update, frames=range(total_frames), interval=100, blit=False)
 
 IMG_DIR = os.path.join(PROJECT_ROOT, 'visualizations', 'images')
 ANI_DIR = os.path.join(PROJECT_ROOT, 'visualizations', 'animations')
@@ -111,16 +105,16 @@ ANI_DIR = os.path.join(PROJECT_ROOT, 'visualizations', 'animations')
 os.makedirs(IMG_DIR, exist_ok=True)
 os.makedirs(ANI_DIR, exist_ok=True)
 
-photo_path = os.path.join(IMG_DIR, f'plot_de_{name.lower()}.png')
+photo_path = os.path.join(IMG_DIR, f'plot_{name.lower()}_cellular.png')
 print(f"Static plot saved for report: {photo_path}")
 
-mp4_path = os.path.join(ANI_DIR, f'evolution_de_{name.lower()}.mp4')
-gif_path = os.path.join(ANI_DIR, f'evolution_de_{name.lower()}.gif')
+mp4_path = os.path.join(ANI_DIR, f'evolution_{name.lower()}_cellular.mp4')
+gif_path = os.path.join(ANI_DIR, f'evolution_{name.lower()}_cellular.gif')
 
-print(f"Saving animations for Differential Evolution {name} to {ANI_DIR}...")
+print(f"Saving cellular animations for {name} to {ANI_DIR}...")
 
 try:
-    ani.save(mp4_path, writer='ffmpeg', fps=10, dpi=100) # Зменшив DPI до 100 для додаткової швидкості
+    ani.save(mp4_path, writer='ffmpeg', fps=10, dpi=150)
     print(f"Successfully saved MP4: {mp4_path}")
 except Exception as e:
     print(f"Error saving MP4: {e}")
@@ -131,7 +125,7 @@ try:
 except Exception as e:
     print(f"Error saving GIF: {e}")
 
-print(f"Running visualization for: {name}")
+print(f"Running cellular visualization for: {name}")
 print(f"Using config: {CONFIG_PATH}")
 fig.savefig(photo_path, dpi=150, bbox_inches='tight')
 print(f"Successfully saved static plot: {photo_path}")

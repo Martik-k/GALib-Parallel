@@ -13,6 +13,8 @@ Makefile
 CTestTestfile.cmake
 compile_commands.json
 
+docs/
+
 # === Logs ===
 log
 logs
@@ -46,9 +48,8 @@ myvenv/
 Thumbs.db
 
 # === Media & Documentation ===
-*.mp4
-*.gif
 visualizations/
+output/
 articles/
 
 # === LaTeX ===

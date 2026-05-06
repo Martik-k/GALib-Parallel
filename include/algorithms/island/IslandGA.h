@@ -22,9 +22,19 @@
 #include <random>
 #include <utility>
 #include <algorithm>
+#include <omp.h>
 
 
 namespace galib {
+/**
+ * @brief Implementation of the Island Model Genetic Algorithm (Coarse-Grained Parallel GA).
+ *
+ * This algorithm manages a single "Island" in an Archipelago. It evolves a local population
+ * independently and periodically migrates individuals to/from neighboring islands based on
+ * a defined topology. Parallelization within the island is handled via OpenMP.
+ *
+ * @tparam GeneType The numeric type of each gene (default: double).
+ */
     template <typename GeneType = double>
     class IslandGA : public Algorithm<GeneType> {
     private:
@@ -47,8 +57,9 @@ namespace galib {
 
         void evaluatePopulation(Population<GeneType>& population) {
             const std::size_t population_size = population.size();
+            const int n_threads = (config_m.num_threads > 0) ? static_cast<int>(config_m.num_threads) : omp_get_max_threads();
 
-            #pragma omp parallel for schedule(dynamic)
+            #pragma omp parallel for schedule(dynamic) num_threads(n_threads)
             for (std::size_t i = 0; i < population_size; ++i) {
                 double score = fitness_function_m.evaluate(population[i].getGenotype());
                 population[i].setFitness(score);
@@ -58,13 +69,14 @@ namespace galib {
         void generateNextGeneration(const Population<GeneType>& current_population, Population<GeneType>& new_population) {
             const std::size_t population_size = current_population.size();
             std::size_t elitism_offset = 0;
+            const int n_threads = (config_m.num_threads > 0) ? static_cast<int>(config_m.num_threads) : omp_get_max_threads();
 
             if (use_elitism_m) {
                 new_population[0] = current_population.getBestIndividual();
                 elitism_offset = 1;
             }
 
-            #pragma omp parallel for schedule(static)
+            #pragma omp parallel for schedule(static) num_threads(n_threads)
             for (std::size_t i = elitism_offset; i < population_size; i += 2) {
                 thread_local static std::random_device tl_rd;
                 thread_local static std::mt19937_64 tl_gen(tl_rd());
@@ -146,6 +158,22 @@ namespace galib {
         }
 
     public:
+        /**
+         * @brief Constructs an IslandGA instance.
+         *
+         * @param ff          Fitness function to minimize.
+         * @param sel         Selection operator for reproduction.
+         * @param mu          Mutation operator.
+         * @param cs          Crossover operator.
+         * @param replacer    Policy for integrating arrived migrants.
+         * @param selector    Policy for choosing individuals to migrate out.
+         * @param buffer      Thread-safe buffer for incoming migrants.
+         * @param comm        MPI communicator for network transport.
+         * @param topology    The logical graph structure of the archipelago.
+         * @param serializer  Object responsible for binary serialization.
+         * @param config      Island-specific parameters (migration interval, size, etc.).
+         * @param elitism     Whether to preserve the best individual locally (default: true).
+         */
         IslandGA(
             FitnessFunction<GeneType>& ff,
             std::unique_ptr<Selection<GeneType>> sel,
@@ -172,6 +200,15 @@ namespace galib {
             config_m(config), 
             use_elitism_m(elitism) {}
 
+        /**
+         * @brief Runs the evolutionary loop for this island.
+         *
+         * Executes the local GA loop while handling asynchronous migration events
+         * and final global synchronization of the best result.
+         *
+         * @param population The local population to evolve.
+         * @note  The population must be initialized before calling this method.
+         */
         void run(Population<GeneType>& population) override {
             if (population.empty()) { return; }
 

@@ -10,6 +10,13 @@
 
 namespace galib {
 
+    /**
+     * @brief Performs uniform mutation.
+     * 
+     * Replaces a gene with a new value sampled uniformly from the range [lower, upper].
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType>
     class UniformMutation : public Mutation<GeneType> {
     private:
@@ -17,9 +24,19 @@ namespace galib {
         GeneType upper_m;
 
     public:
+        /**
+         * @brief Constructs the mutation operator.
+         * @param lower Lower bound for new random values.
+         * @param upper Upper bound for new random values.
+         */
         UniformMutation(GeneType lower, GeneType upper)
             : lower_m(lower), upper_m(upper) {}
 
+        /**
+         * @brief Replaces genes with random values from [lower, upper].
+         * @param individual    Target individual.
+         * @param mutation_rate Probability per gene.
+         */
         void mutate(Individual<GeneType>& individual, double mutation_rate) override {
             if (mutation_rate <= 0.0) return;
 

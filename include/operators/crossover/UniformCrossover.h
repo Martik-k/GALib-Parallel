@@ -10,9 +10,24 @@
 
 namespace galib {
 
+    /**
+     * @brief Performs uniform crossover.
+     * 
+     * For every gene position, there is a 50% chance to take the gene from 
+     * Parent 1 and a 50% chance to take it from Parent 2.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType>
     class UniformCrossover : public Crossover<GeneType> {
     public:
+        /**
+         * @brief Randomly picks genes from either parent at each position.
+         * @param parent1 First parent.
+         * @param parent2 Second parent.
+         * @return Pair of children.
+         * @throws std::invalid_argument if parents have different genotype sizes.
+         */
         std::pair<Individual<GeneType>, Individual<GeneType>>
         crossover(const Individual<GeneType>& parent1,
                   const Individual<GeneType>& parent2) override {
