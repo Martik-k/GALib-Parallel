@@ -12,6 +12,11 @@
 namespace galib::utils {
     /**
      * @brief Logger for writing optimization progress to a CSV file.
+     * 
+     * Records the fitness and genotype of every individual in the population
+     * at defined intervals, creating a detailed audit trail of the evolution.
+     * 
+     * @tparam GeneType The gene type of the population.
      */
     template <typename GeneType>
     class FileLogger {
@@ -21,9 +26,19 @@ namespace galib::utils {
         bool header_written_m = false;
 
     public:
+        /**
+         * @brief Constructs a file logger.
+         * @param path     Output CSV file path.
+         * @param interval Generation frequency for recording data.
+         */
         FileLogger(const std::string& path, const std::size_t interval)
             : path_m(path), interval_m(interval) {}
 
+        /**
+         * @brief Appends current population data to the CSV file.
+         * @param gen Current generation index.
+         * @param pop Current population state.
+         */
         void log(std::size_t gen, const Population<GeneType>& pop) {
             if (interval_m == 0 || (gen % interval_m != 0 && gen != 0)) {
                 return;
