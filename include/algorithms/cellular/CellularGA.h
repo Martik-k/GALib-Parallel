@@ -11,6 +11,7 @@
 
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
+#include <tbb/global_control.h>
 
 #include <memory>
 #include <random>
@@ -36,6 +37,7 @@ private:
     double mutation_rate_m;
     double crossover_rate_m;
     std::size_t max_generations_m;
+    std::size_t threads_m;
     bool use_local_elitism_m;
 
     std::size_t rows_m;
@@ -57,11 +59,16 @@ private:
 
     void evaluatePopulation(Population<GeneType>& population) {
         const std::size_t population_size = population.size();
-        #pragma omp parallel for schedule(dynamic)
-        for (int i = 0; i < static_cast<int>(population_size); ++i) {
-            double score = fitness_function_m.evaluate(population[i].getGenotype());
-            population[i].setFitness(score);
-        }
+
+        tbb::parallel_for(
+            tbb::blocked_range<std::size_t>(0, population_size),
+            [&](const tbb::blocked_range<std::size_t>& range) {
+                for (std::size_t i = range.begin(); i < range.end(); ++i) {
+                    const double score = fitness_function_m.evaluate(population[i].getGenotype());
+                    population[i].setFitness(score);
+                }
+            }
+        );
     }
 
     Individual<GeneType> evolveCell(
@@ -119,6 +126,7 @@ public:
         double m_rate,
         double c_rate,
         std::size_t max_gen,
+        std::size_t threads,
         bool elitism = false
     )
         : fitness_function_m(ff),
@@ -128,6 +136,7 @@ public:
           mutation_rate_m(m_rate),
           crossover_rate_m(c_rate),
           max_generations_m(max_gen),
+          threads_m(threads),
           rows_m(0),
           cols_m(0),
           use_local_elitism_m(elitism) {}
@@ -140,6 +149,14 @@ public:
         std::tie(rows_m, cols_m) = inferGridShape(population.size());
 
         Population<GeneType> new_population(population.size(), population.getNumGenes());
+        std::unique_ptr<tbb::global_control> tbb_control;
+
+        if (threads_m > 0) {
+            tbb_control = std::make_unique<tbb::global_control>(
+                tbb::global_control::max_allowed_parallelism,
+                threads_m
+            );
+        }
 
         evaluatePopulation(population);
 
