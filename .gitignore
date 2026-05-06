@@ -13,6 +13,8 @@ Makefile
 CTestTestfile.cmake
 compile_commands.json
 
+docs/
+
 # === Logs ===
 log
 logs

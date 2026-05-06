@@ -154,3 +154,16 @@ install(FILES
 )
 
 enable_testing()
+
+find_package(Doxygen QUIET)
+if (DOXYGEN_FOUND)
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+    message(STATUS "Doxygen found — run 'cmake --build <build_dir> --target docs' to generate docs")
+else ()
+    message(STATUS "Doxygen not found — install it to enable the 'docs' target")
+endif ()
