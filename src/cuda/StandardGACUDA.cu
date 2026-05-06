@@ -144,7 +144,7 @@ __global__ void precomputePairs(const Scalar* fitness, int2* pairs, int* splits,
 __global__ void evolveGenes(const Scalar* population, Scalar* nextPopulation,
                             const int2* pairs, const int* splits,
                             int populationSize, int dimensions,
-                            int elitismOffset, Scalar mutationRate,
+                            int elitismOffset, Scalar mutationRate, Scalar sigma,
                             uint64_t baseSeed, uint64_t generation) {
     const int gid            = blockIdx.x * blockDim.x + threadIdx.x;
     const int totalChildGenes = (populationSize - elitismOffset) * dimensions;
@@ -165,7 +165,7 @@ __global__ void evolveGenes(const Scalar* population, Scalar* nextPopulation,
         + static_cast<uint64_t>(childGlobal) * static_cast<uint64_t>(dimensions)
         + static_cast<uint64_t>(gene)));
     if (uniformHash(mutSeed) < mutationRate)
-        geneVal += normalHash(mutSeed ^ 0xDEADBEEFCAFEBABEULL) * mutationRate;
+        geneVal += normalHash(mutSeed ^ 0xDEADBEEFCAFEBABEULL) * sigma;
     nextPopulation[childGlobal * dimensions + gene] = geneVal;
 }
 
@@ -219,3 +219,180 @@ __global__ void copyElite(const Scalar* population, Scalar* nextPopulation,
 }
 
 } // namespace
+
+// ── Full GPU evolution bridge ─────────────────────────────────────────────────
+
+#include "algorithms/standard/CUDAEvaluator.h"
+#include <chrono>
+#include <iostream>
+#include <omp.h>
+#include <vector>
+
+namespace galib::cuda::internal {
+
+static bool tryParseProblemId(const std::string& name, ProblemId& out) {
+    if (name == "Sphere")    { out = ProblemId::Sphere;    return true; }
+    if (name == "Rastrigin") { out = ProblemId::Rastrigin; return true; }
+    if (name == "HeavyTrig") { out = ProblemId::HeavyTrig; return true; }
+    return false;
+}
+
+// Copy population from device, evaluate via CPU callback, upload fitness to device.
+static bool cpuEvaluateAndUpload(
+    const float* d_pop, float* d_fitness,
+    int pop_size, int dims,
+    std::vector<float>& h_pop_tmp, std::vector<float>& h_fit_tmp,
+    const std::function<double(const float*, int)>& cb)
+{
+    const std::size_t genes_bytes   = static_cast<std::size_t>(pop_size) * dims * sizeof(float);
+    const std::size_t fitness_bytes = static_cast<std::size_t>(pop_size) * sizeof(float);
+
+    if (cudaMemcpy(h_pop_tmp.data(), d_pop, genes_bytes, cudaMemcpyDeviceToHost) != cudaSuccess)
+        return false;
+
+    #pragma omp parallel for schedule(dynamic)
+    for (int i = 0; i < pop_size; ++i)
+        h_fit_tmp[static_cast<std::size_t>(i)] =
+            static_cast<float>(cb(&h_pop_tmp[static_cast<std::size_t>(i) * dims], dims));
+
+    return cudaMemcpy(d_fitness, h_fit_tmp.data(), fitness_bytes, cudaMemcpyHostToDevice) == cudaSuccess;
+}
+
+bool runCUDAEvolution(CUDARunParams& params,
+                      std::vector<float>& h_genes,
+                      std::vector<float>& h_fitness) {
+    const int P = params.pop_size;
+    const int D = params.dims;
+
+    ProblemId problem = ProblemId::Sphere;
+    const bool use_gpu_fitness = tryParseProblemId(params.problem_name, problem);
+
+    const std::size_t genes_bytes   = static_cast<std::size_t>(P) * D * sizeof(float);
+    const std::size_t fitness_bytes = static_cast<std::size_t>(P) * sizeof(float);
+    const int eval_blocks           = divUp(P, kBlockSize);
+    const int pair_count            = (P + 1) / 2;
+    const std::size_t smem          = static_cast<std::size_t>(kBlockSize) * (sizeof(float) + sizeof(int));
+
+    // ── Device buffers ────────────────────────────────────────────────────────
+    float* d_pop          = nullptr;
+    float* d_next_pop     = nullptr;
+    float* d_fitness      = nullptr;
+    int2*  d_pairs        = nullptr;
+    int*   d_splits       = nullptr;
+    float* d_best_fit     = nullptr;
+    int*   d_best_idx     = nullptr;
+    float* d_partial_fit  = nullptr;
+    int*   d_partial_idx  = nullptr;
+
+    const std::size_t partial_bytes_f = static_cast<std::size_t>(eval_blocks) * sizeof(float);
+    const std::size_t partial_bytes_i = static_cast<std::size_t>(eval_blocks) * sizeof(int);
+
+    bool alloc_ok =
+        cudaMalloc(&d_pop,         genes_bytes)                                   == cudaSuccess &&
+        cudaMalloc(&d_next_pop,    genes_bytes)                                   == cudaSuccess &&
+        cudaMalloc(&d_fitness,     fitness_bytes)                                 == cudaSuccess &&
+        cudaMalloc(&d_pairs,       static_cast<std::size_t>(pair_count) * sizeof(int2)) == cudaSuccess &&
+        cudaMalloc(&d_splits,      static_cast<std::size_t>(pair_count) * sizeof(int))  == cudaSuccess &&
+        cudaMalloc(&d_best_fit,    sizeof(float))                                 == cudaSuccess &&
+        cudaMalloc(&d_best_idx,    sizeof(int))                                   == cudaSuccess &&
+        cudaMalloc(&d_partial_fit, partial_bytes_f)                               == cudaSuccess &&
+        cudaMalloc(&d_partial_idx, partial_bytes_i)                               == cudaSuccess;
+
+    auto cleanup = [&] {
+        cudaFree(d_pop); cudaFree(d_next_pop); cudaFree(d_fitness);
+        cudaFree(d_pairs); cudaFree(d_splits);
+        cudaFree(d_best_fit); cudaFree(d_best_idx);
+        cudaFree(d_partial_fit); cudaFree(d_partial_idx);
+    };
+
+    if (!alloc_ok) {
+        std::cerr << "[GALib CUDA] Device allocation failed.\n";
+        cleanup(); return false;
+    }
+
+    if (cudaMemcpy(d_pop, h_genes.data(), genes_bytes, cudaMemcpyHostToDevice) != cudaSuccess) {
+        std::cerr << "[GALib CUDA] Initial H2D upload failed.\n";
+        cleanup(); return false;
+    }
+
+    // CPU scratch (only allocated when fitness runs on CPU)
+    std::vector<float> h_pop_tmp(use_gpu_fitness ? 0 : static_cast<std::size_t>(P) * D);
+    std::vector<float> h_fit_tmp(use_gpu_fitness ? 0 : static_cast<std::size_t>(P));
+
+    const uint64_t base_seed = static_cast<uint64_t>(
+        std::chrono::high_resolution_clock::now().time_since_epoch().count()) ^ 0xA5A5A5A5ULL;
+
+    // ── Initial evaluation ────────────────────────────────────────────────────
+    if (use_gpu_fitness) {
+        evaluatePopulation<<<eval_blocks, kBlockSize>>>(d_pop, d_fitness, P, D, problem);
+        if (cudaDeviceSynchronize() != cudaSuccess) { cleanup(); return false; }
+    } else {
+        if (!cpuEvaluateAndUpload(d_pop, d_fitness, P, D, h_pop_tmp, h_fit_tmp, params.fitness_callback))
+            { cleanup(); return false; }
+    }
+
+    // ── Generation loop ───────────────────────────────────────────────────────
+    for (int gen = 0; gen < params.max_generations; ++gen) {
+
+        // Find best individual (for elitism + progress)
+        findBestBlock<<<eval_blocks, kBlockSize, smem>>>(d_fitness, P, d_partial_fit, d_partial_idx);
+        finalizeBest <<<1,           kBlockSize, smem>>>(d_partial_fit, d_partial_idx, eval_blocks,
+                                                          d_best_fit, d_best_idx);
+        if (cudaDeviceSynchronize() != cudaSuccess) { cleanup(); return false; }
+
+        if (params.progress_callback) {
+            float best_f = 0.0f;
+            cudaMemcpy(&best_f, d_best_fit, sizeof(float), cudaMemcpyDeviceToHost);
+            params.progress_callback(gen, static_cast<double>(best_f));
+        }
+
+        // Elitism: copy best to slot 0 of next population
+        int elitism_offset = 0;
+        if (params.use_elitism) {
+            elitism_offset = 1;
+            copyElite<<<divUp(D, kBlockSize), kBlockSize>>>(d_pop, d_next_pop, d_best_idx, D);
+        }
+
+        // Phase A: tournament selection + crossover planning (one thread per pair)
+        const int generated  = P - elitism_offset;
+        const int pair_cnt   = (generated + 1) / 2;
+        precomputePairs<<<divUp(pair_cnt, kBlockSize), kBlockSize>>>(
+            d_fitness, d_pairs, d_splits,
+            P, D, elitism_offset,
+            params.tournament_size,
+            params.crossover_rate,
+            base_seed, static_cast<uint64_t>(gen));
+
+        // Phase B: crossover + mutation (one thread per gene)
+        evolveGenes<<<divUp(generated * D, kBlockSize), kBlockSize>>>(
+            d_pop, d_next_pop, d_pairs, d_splits,
+            P, D, elitism_offset,
+            params.mutation_rate, params.sigma,
+            base_seed, static_cast<uint64_t>(gen));
+
+        if (cudaDeviceSynchronize() != cudaSuccess) { cleanup(); return false; }
+
+        std::swap(d_pop, d_next_pop);
+
+        // Evaluate new population
+        if (use_gpu_fitness) {
+            evaluatePopulation<<<eval_blocks, kBlockSize>>>(d_pop, d_fitness, P, D, problem);
+            if (cudaDeviceSynchronize() != cudaSuccess) { cleanup(); return false; }
+        } else {
+            if (!cpuEvaluateAndUpload(d_pop, d_fitness, P, D, h_pop_tmp, h_fit_tmp, params.fitness_callback))
+                { cleanup(); return false; }
+        }
+    }
+
+    // ── Copy results back to host ─────────────────────────────────────────────
+    h_genes.resize(static_cast<std::size_t>(P) * D);
+    h_fitness.resize(static_cast<std::size_t>(P));
+    const bool ok =
+        cudaMemcpy(h_genes.data(),   d_pop,     genes_bytes,   cudaMemcpyDeviceToHost) == cudaSuccess &&
+        cudaMemcpy(h_fitness.data(), d_fitness, fitness_bytes, cudaMemcpyDeviceToHost) == cudaSuccess;
+
+    cleanup();
+    return ok;
+}
+
+} // namespace galib::cuda::internal

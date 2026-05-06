@@ -25,6 +25,7 @@ namespace galib {
 
         /** @brief Whether to preserve the best individual across generations. */
         bool use_elitism = true;
+        std::size_t threads = 1;
 
         /** @brief Number of OpenMP threads to use. 0 means use system default (omp_get_max_threads). */
         std::size_t num_threads = 0;

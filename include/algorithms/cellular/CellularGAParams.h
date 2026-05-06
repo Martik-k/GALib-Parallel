@@ -13,8 +13,6 @@ namespace galib {
      * @brief Parameters for the Cellular Genetic Algorithm.
      */
     struct CellularGAParams : public AlgorithmConfig {
-        std::size_t rows = 10;
-        std::size_t cols = 10;
         bool use_local_elitism = true;
     };
 

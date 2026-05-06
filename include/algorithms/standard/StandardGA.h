@@ -15,6 +15,7 @@
 #include <fstream>
 #include <omp.h>
 #include <filesystem>
+#include <thread>
 
 #include "algorithms/Algorithm.h"
 
@@ -27,13 +28,12 @@ namespace galib {
         std::unique_ptr<Selection<GeneType>> selection_m;
         std::unique_ptr<Mutation<GeneType>> mutation_m;
         std::unique_ptr<Crossover<GeneType>> crossover_m;
+        std::size_t threads_m;
 
         double mutation_rate_m;
         double crossover_rate_m;
         std::size_t max_generations_m;
         bool use_elitism_m;
-
-        std::string log_file_m = "";
 
         void evaluatePopulation(Population<GeneType>& population) {
             int population_size = static_cast<int>(population.size());
@@ -54,30 +54,18 @@ namespace galib {
             double m_rate,
             double c_rate,
             std::size_t max_gen,
-            bool elitism = true
+            bool elitism = true,
+            std::size_t threads = 1
         ) : fitness_function_m(ff), selection_m(std::move(sel)), mutation_m(std::move(mu)), crossover_m(std::move(cs)),
             mutation_rate_m(m_rate), crossover_rate_m(c_rate), max_generations_m(max_gen),
-            use_elitism_m(elitism) {}
-
-        void enableLogging(const std::string& filename) { log_file_m = filename; }
-
-        void run(Population<GeneType>& population) override {
-			std::ofstream log;
-            if (!log_file_m.empty()) {
-                std::filesystem::path p(log_file_m);
-
-                if (p.has_parent_path()) {
-                    std::filesystem::create_directories(p.parent_path());
+            use_elitism_m(elitism), threads_m(threads) {
+                if (threads_m == 0) {
+                    threads_m = std::thread::hardware_concurrency() / 2;
                 }
-                log.open(log_file_m);
-
-                if (!log.is_open()) {
-                    std::cerr << "Error: Could not open log file " << log_file_m << std::endl;
-                } else {
-                    log << "generation,individual_idx,x,y\n";
-                }
+                omp_set_num_threads(static_cast<int>(threads_m));
             }
 
+        void run(Population<GeneType>& population) override {
             if (population.empty()) { return; }
 
             std::size_t population_size = population.size();
@@ -88,14 +76,7 @@ namespace galib {
             evaluatePopulation(population);
 
             for (std::size_t generation_idx = 0; generation_idx < max_generations_m; ++generation_idx) {
-
-                if (log.is_open()) {
-    				for (std::size_t i = 0; i < population.size(); ++i) {
-        				log << generation_idx << "," << i << ","
-            				<< population[i].getGenotype()[0] << ","
-            				<< population[i].getGenotype()[1] << "\n";
-    				}
-				}
+                this->notifyLoggers(generation_idx, population);
 
 				std::size_t elitism_offset = 0;
 
@@ -133,7 +114,6 @@ namespace galib {
                 }
 
 				std::swap(population, new_population);
-
                 evaluatePopulation(population);
 
                 this->notifyLoggers(generation_idx, population);
@@ -143,7 +123,6 @@ namespace galib {
                               << std::endl;
                 }
             }
-            if (log.is_open()) log.close();
         }
     };
 

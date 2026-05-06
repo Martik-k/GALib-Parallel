@@ -3,16 +3,25 @@
 
 algorithm:
   # Common Parameters
+<<<<<<< feature/user-interface-refactor
+  type: "differential_evolution"   # Options: "standard", "cellular", "island", "differential_evolution"
+  max_generations: 2000
+  mutation_rate: 0.1
+  crossover_rate: 0.9        # Used as CR_rate in Differential Evolution
+  use_elitism: true
+  threads: 4                 # Number of threads for the parallelization
+=======
   type: "island"             # Options: "standard", "cellular", "island", "differential_evolution"
   max_generations: 80
   mutation_rate: 0.1
   crossover_rate: 0.9        # Used as CR_rate in Differential Evolution
   use_elitism: true
   threads: 0                # Number of threads for the parallelization
+>>>>>>> main
 
   # Standard GA Specific Parameters
   standard:
-    use_cuda: false
+    use_cuda: true
 
   # Differential Evolution Specific Parameters
   differential_evolution:

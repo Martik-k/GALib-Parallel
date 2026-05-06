@@ -35,6 +35,8 @@ namespace galib {
             }
         }
 
+        std::size_t getTournamentSize() const { return tournament_size_m; }
+
         /**
          * @brief Conducts a tournament and returns the winner.
          * @param population Source population.
