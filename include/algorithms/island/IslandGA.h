@@ -22,6 +22,7 @@
 #include <random>
 #include <utility>
 #include <algorithm>
+#include <omp.h>
 
 
 namespace galib {
@@ -47,8 +48,9 @@ namespace galib {
 
         void evaluatePopulation(Population<GeneType>& population) {
             const std::size_t population_size = population.size();
+            const int n_threads = (config_m.num_threads > 0) ? static_cast<int>(config_m.num_threads) : omp_get_max_threads();
 
-            #pragma omp parallel for schedule(dynamic)
+            #pragma omp parallel for schedule(dynamic) num_threads(n_threads)
             for (std::size_t i = 0; i < population_size; ++i) {
                 double score = fitness_function_m.evaluate(population[i].getGenotype());
                 population[i].setFitness(score);
@@ -58,13 +60,14 @@ namespace galib {
         void generateNextGeneration(const Population<GeneType>& current_population, Population<GeneType>& new_population) {
             const std::size_t population_size = current_population.size();
             std::size_t elitism_offset = 0;
+            const int n_threads = (config_m.num_threads > 0) ? static_cast<int>(config_m.num_threads) : omp_get_max_threads();
 
             if (use_elitism_m) {
                 new_population[0] = current_population.getBestIndividual();
                 elitism_offset = 1;
             }
 
-            #pragma omp parallel for schedule(static)
+            #pragma omp parallel for schedule(static) num_threads(n_threads)
             for (std::size_t i = elitism_offset; i < population_size; i += 2) {
                 thread_local static std::random_device tl_rd;
                 thread_local static std::mt19937_64 tl_gen(tl_rd());

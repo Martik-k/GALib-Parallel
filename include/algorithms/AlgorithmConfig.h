@@ -15,6 +15,7 @@ namespace galib {
         double mutation_rate = 0.05;
         double crossover_rate = 0.8;
         bool use_elitism = true;
+        std::size_t num_threads = 0; // 0 means use all available threads
 
         virtual ~AlgorithmConfig() = default;
     };

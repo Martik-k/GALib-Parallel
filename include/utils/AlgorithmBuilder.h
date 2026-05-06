@@ -150,6 +150,7 @@ namespace galib::utils {
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
             params.use_elitism = node["use_elitism"].as<bool>(Defaults::USE_ELITISM);
+            params.num_threads = node["threads"].as<std::size_t>(0);
 
             bool use_cuda = Defaults::Standard::USE_CUDA;
             if (node["standard"]) {
@@ -204,6 +205,7 @@ namespace galib::utils {
             params.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
+            params.num_threads = node["threads"].as<std::size_t>(0);
 
             if (node["cellular"]) {
                 params.rows = node["cellular"]["rows"].as<std::size_t>(Defaults::Cellular::ROWS);
@@ -248,6 +250,7 @@ namespace galib::utils {
             DEParams params;
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::DE::CR_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
+            params.num_threads = node["threads"].as<std::size_t>(0);
 
             if (node["differential_evolution"]) {
                 params.f_weight = node["differential_evolution"]["f_weight"].as<double>(Defaults::DE::F_WEIGHT);
@@ -275,6 +278,7 @@ namespace galib::utils {
             island_config.max_generations = node["max_generations"].as<std::size_t>(Defaults::Island::MAX_GENERATIONS);
             island_config.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
             island_config.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
+            island_config.num_threads = node["threads"].as<std::size_t>(0);
 
             std::size_t buffer_capacity = Defaults::Island::BUFFER_CAPACITY;
             std::string topology_type = Defaults::Island::TOPOLOGY;
