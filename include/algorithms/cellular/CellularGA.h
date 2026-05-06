@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "core/GridPopulation.h"
+#include "core/Population.h"
 #include "core/FitnessFunction.h"
 #include "algorithms/cellular/selection/LocalSelection.h"
 #include "operators/mutation/Mutation.h"
@@ -12,13 +12,14 @@
 #include <tbb/parallel_for.h>
 #include <tbb/blocked_range.h>
 
-#include <iostream>
 #include <memory>
 #include <random>
 #include <utility>
 #include <fstream>
 #include <filesystem>
 #include <string>
+#include <cmath>
+#include <stdexcept>
 
 #include "algorithms/Algorithm.h"
 
@@ -40,9 +41,20 @@ private:
     std::size_t rows_m;
     std::size_t cols_m;
 
-    std::string log_file_m = "";
-
 private:
+    static std::pair<std::size_t, std::size_t> inferGridShape(std::size_t population_size) {
+        if (population_size == 0) {
+            throw std::invalid_argument("Population size cannot be zero.");
+        }
+
+        std::size_t rows = static_cast<std::size_t>(std::sqrt(static_cast<long double>(population_size)));
+        while (rows > 1 && population_size % rows != 0) {
+            --rows;
+        }
+
+        return {rows, population_size / rows};
+    }
+
     void evaluatePopulation(Population<GeneType>& population) {
         const std::size_t population_size = population.size();
         #pragma omp parallel for schedule(dynamic)
@@ -62,9 +74,7 @@ private:
         thread_local static std::uniform_real_distribution<double> dist(0.0, 1.0);
 
         const Individual<GeneType>& current = population[row * cols_m + col];
-        // Note: For now we still pass the population to local_selection_m.
-        // We assume LocalSelection::select is updated to take Population or we just use it as is if it's templated.
-        const Individual<GeneType>& neighbor = local_selection_m->select(population, row, col);
+        const Individual<GeneType>& neighbor = local_selection_m->select(population, row, col, rows_m, cols_m);
 
         Individual<GeneType> child1;
         Individual<GeneType> child2;
@@ -109,8 +119,6 @@ public:
         double m_rate,
         double c_rate,
         std::size_t max_gen,
-        std::size_t rows,
-        std::size_t cols,
         bool elitism = false
     )
         : fitness_function_m(ff),
@@ -120,82 +128,40 @@ public:
           mutation_rate_m(m_rate),
           crossover_rate_m(c_rate),
           max_generations_m(max_gen),
-          rows_m(rows),
-          cols_m(cols),
+          rows_m(0),
+          cols_m(0),
           use_local_elitism_m(elitism) {}
 
-    void enableLogging(const std::string& filename) {
-        log_file_m = filename;
-    }
-
-    void run(GridPopulation<GeneType>& population) {
-        std::ofstream log;
-
-        if (!log_file_m.empty()) {
-            std::filesystem::path p(log_file_m);
-
-            if (p.has_parent_path()) {
-                std::filesystem::create_directories(p.parent_path());
-            }
-
-            log.open(log_file_m);
-
-            if (!log.is_open()) {
-                std::cerr << "Error: Could not open log file " << log_file_m << std::endl;
-            } else {
-                log << "generation,cell_idx,x,y\n";
-            }
-        }
-
+    void run(Population<GeneType>& population) override {
         if (population.empty()) {
             return;
         }
 
-        GridPopulation<GeneType> new_population(
-            population.rows(),
-            population.cols(),
-            population.getNumGenes()
-        );
+        std::tie(rows_m, cols_m) = inferGridShape(population.size());
+
+        Population<GeneType> new_population(population.size(), population.getNumGenes());
 
         evaluatePopulation(population);
 
         for (std::size_t generation_idx = 0; generation_idx < max_generations_m; ++generation_idx) {
-
-            if (log.is_open()) {
-                for (std::size_t i = 0; i < population.size(); ++i) {
-                    const auto& ind = population.linearAt(i);
-                    log << generation_idx << "," << i << ","
-                        << ind.getGenotype()[0] << ","
-                        << ind.getGenotype()[1] << "\n";
-                }
-            }
+            this->notifyLoggers(generation_idx, population);
 
             tbb::parallel_for(
                 tbb::blocked_range<std::size_t>(0, population.size()),
                 [&](const tbb::blocked_range<std::size_t>& range) {
                     for (std::size_t i = range.begin(); i < range.end(); ++i) {
-                        std::size_t row = i / population.cols();
-                        std::size_t col = i % population.cols();
+                        const std::size_t row = i / cols_m;
+                        const std::size_t col = i % cols_m;
 
-                        new_population.at(row, col) = evolveCell(population, row, col);
+                        new_population[i] = evolveCell(population, row, col);
                     }
                 }
             );
 
             std::swap(population, new_population);
-
-           
-
-            if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
-                std::cout << "Generation " << (generation_idx + 1)
-                        << " | Best Fitness: " << population.getBestIndividual().getFitness()
-                        << std::endl;
-            }
         }
 
-        if (log.is_open()) {
-            log.close();
-        }
+        this->notifyLoggers(max_generations_m, population);
     }
     };
 

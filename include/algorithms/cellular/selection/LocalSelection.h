@@ -15,7 +15,9 @@ public:
     virtual const Individual<GeneType>& select(
         const Population<GeneType>& population,
         std::size_t row,
-        std::size_t col
+        std::size_t col,
+        std::size_t rows,
+        std::size_t cols
     ) const = 0;
 };
 

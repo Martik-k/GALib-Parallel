@@ -205,16 +205,9 @@ namespace galib::utils {
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
 
             if (node["cellular"]) {
-                params.rows = node["cellular"]["rows"].as<std::size_t>(Defaults::Cellular::ROWS);
-                params.cols = node["cellular"]["cols"].as<std::size_t>(Defaults::Cellular::COLS);
                 params.use_local_elitism = node["cellular"]["use_local_elitism"].as<bool>(Defaults::Cellular::USE_LOCAL_ELITISM);
             }
 
-            // NOTE: CellularGA currently does not support the Algorithm<GeneType> interface
-            // because it still uses GridPopulation instead of Population.
-            // This will be fixed in the future.
-
-            /*
             auto selection = OperatorBuilder<GeneType>::buildLocalSelection(node["selection"]);
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
@@ -227,13 +220,8 @@ namespace galib::utils {
                 params.mutation_rate,
                 params.crossover_rate,
                 params.max_generations,
-                params.rows,
-                params.cols,
                 params.use_local_elitism
             );
-            */
-
-            throw std::runtime_error("CellularGA is not yet implemented to support the common Algorithm interface.");
         }
 
         /**
