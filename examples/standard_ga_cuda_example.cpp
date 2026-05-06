@@ -13,19 +13,28 @@ int main(int argc, char* argv[]) {
     try {
         std::string config_path = (argc > 1) ? argv[1] : "configs/full_config_example.yaml";
 
-        constexpr std::size_t NUM_GENES = 50;
-        const std::size_t POPULATION_SIZE = 1000;
+        YAML::Node full_cfg = YAML::LoadFile(config_path);
+        const auto alg_cfg  = full_cfg["algorithm"];
 
-        benchmark::RastriginFunction<double> fitness_fn(NUM_GENES, -5.12, 5.12);
+        const std::size_t NUM_GENES       = alg_cfg["num_genes"].as<std::size_t>(50);
+        const std::size_t POPULATION_SIZE = alg_cfg["pop_size"].as<std::size_t>(1000);
+
+        double lb = -5.12, ub = 5.12;
+        if (full_cfg["problem"]) {
+            lb = full_cfg["problem"]["lower_bound"].as<double>(-5.12);
+            ub = full_cfg["problem"]["upper_bound"].as<double>( 5.12);
+        }
+
+        benchmark::RastriginFunction<double> fitness_fn(NUM_GENES, lb, ub);
 
         const auto algo = utils::AlgorithmBuilder<double>::build(config_path, fitness_fn);
 
         Population<double> population(POPULATION_SIZE, NUM_GENES);
         population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
+        std::cout << "Genes per individual: " << NUM_GENES << std::endl;
 
         // Determine actual backend from config at runtime
-        const YAML::Node cfg      = YAML::LoadFile(config_path);
-        const YAML::Node std_node = cfg["algorithm"]["standard"];
+        const YAML::Node std_node = alg_cfg["standard"];
         const bool use_cuda       = std_node && std_node["use_cuda"] ? std_node["use_cuda"].as<bool>(false) : false;
 
 #ifdef GALIB_WITH_CUDA
