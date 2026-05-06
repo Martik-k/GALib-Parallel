@@ -27,10 +27,10 @@ namespace galib {
 
         /**
          * @brief Constructor for uniform bounds.
-         * @param dims Number of dimensions.
-         * @param lower Lower bound for all dimensions.
-         * @param upper Upper bound for all dimensions.
-         * @param func The evaluation function (lambda, function pointer, etc.).
+         * @param dims   Number of dimensions.
+         * @param lower  Lower bound applied to all dimensions.
+         * @param upper  Upper bound applied to all dimensions.
+         * @param func   Evaluation callable (lambda, function pointer, std::function).
          */
         FunctionalFitness(
             std::size_t dims,
@@ -44,10 +44,11 @@ namespace galib {
 
         /**
          * @brief Constructor for non-uniform bounds.
-         * @param dims Number of dimensions.
-         * @param lowers Vector of lower bounds per dimension.
-         * @param uppers Vector of upper bounds per dimension.
-         * @param func The evaluation function.
+         * @param dims    Number of dimensions.
+         * @param lowers  Vector of lower bounds per dimension.
+         * @param uppers  Vector of upper bounds per dimension.
+         * @param func    Evaluation callable.
+         * @throws std::invalid_argument if bounds vector sizes do not match dims.
          */
         FunctionalFitness(
             std::size_t dims,
@@ -63,18 +64,37 @@ namespace galib {
             }
         }
 
+        /**
+         * @brief Evaluates the fitness of a candidate solution using the wrapped function.
+         * @param phenotype Gene values of the individual.
+         * @return Fitness score.
+         */
         [[nodiscard]] double evaluate(const std::vector<GeneType>& phenotype) const override {
             return evaluator_m(phenotype);
         }
 
+        /**
+         * @brief Returns the problem dimensionality.
+         * @return Number of dimensions.
+         */
         [[nodiscard]] std::size_t size() const override {
             return dimensions_m;
         }
 
+        /**
+         * @brief Gets the lower bound for a specific dimension.
+         * @param dimension Index of the dimension.
+         * @return Lower bound value.
+         */
         [[nodiscard]] GeneType getLowerBound(std::size_t dimension) const override {
             return lower_bounds_m.at(dimension);
         }
 
+        /**
+         * @brief Gets the upper bound for a specific dimension.
+         * @param dimension Index of the dimension.
+         * @return Upper bound value.
+         */
         [[nodiscard]] GeneType getUpperBound(std::size_t dimension) const override {
             return upper_bounds_m.at(dimension);
         }

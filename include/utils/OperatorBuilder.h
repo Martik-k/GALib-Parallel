@@ -30,10 +30,23 @@
 #include "algorithms/island/migration/selectors/DemeSelector.h"
 #include "algorithms/island/migration/selectors/ElitismSelector.h"
 
-namespace galib::utils {
+namespace galib::internal {
+    /**
+     * @brief Internal factory for instantiating GA operators from YAML configurations.
+     * 
+     * This class is primarily used by AlgorithmBuilder to map configuration 
+     * strings to concrete operator instances.
+     * 
+     * @tparam GeneType The numeric type of each gene.
+     */
     template <typename GeneType = double>
     class OperatorBuilder {
     public:
+        /**
+         * @brief Builds a selection operator.
+         * @param node YAML node for selection config.
+         * @return unique_ptr to Selection.
+         */
         static std::unique_ptr<Selection<GeneType>> buildSelection(const YAML::Node& node) {
             const auto type = node["type"].as<std::string>("tournament");
 
@@ -45,6 +58,11 @@ namespace galib::utils {
             throw std::invalid_argument("Unknown Selection type: " + type);
         }
 
+        /**
+         * @brief Builds a local selection operator (for Cellular GA).
+         * @param node YAML node for selection config.
+         * @return unique_ptr to LocalSelection.
+         */
         static std::unique_ptr<LocalSelection<GeneType>> buildLocalSelection(const YAML::Node& node) {
             const auto type = node["type"].as<std::string>("best_neighbor");
 
@@ -55,6 +73,13 @@ namespace galib::utils {
             throw std::invalid_argument("Unknown LocalSelection type: " + type);
         }
 
+        /**
+         * @brief Builds a mutation operator.
+         * @param node YAML node for mutation config.
+         * @param lb   Lower bound (for uniform/boundary mutation).
+         * @param ub   Upper bound (for uniform/boundary mutation).
+         * @return unique_ptr to Mutation.
+         */
         static std::unique_ptr<Mutation<GeneType>> buildMutation(const YAML::Node& node, GeneType lb = 0, GeneType ub = 0) {
             const auto type = node["type"].as<std::string>("gaussian");
 
@@ -70,6 +95,11 @@ namespace galib::utils {
             throw std::invalid_argument("Unknown Mutation type: " + type);
         }
 
+        /**
+         * @brief Builds a crossover operator.
+         * @param node YAML node for crossover config.
+         * @return unique_ptr to Crossover.
+         */
         static std::unique_ptr<Crossover<GeneType>> buildCrossover(const YAML::Node& node) {
             const auto type = node["type"].as<std::string>("single_point");
 
@@ -84,6 +114,11 @@ namespace galib::utils {
             throw std::invalid_argument("Unknown Crossover type: " + type);
         }
 
+        /**
+         * @brief Builds a deme replacer policy (for Island GA).
+         * @param node YAML node for replacer config.
+         * @return unique_ptr to DemeReplacer.
+         */
         static std::unique_ptr<DemeReplacer<GeneType>> buildDemeReplacer(const YAML::Node& node) {
             const auto type = node["type"].as<std::string>("worst");
 
@@ -94,6 +129,11 @@ namespace galib::utils {
             throw std::invalid_argument("Unknown DemeReplacer type: " + type);
         }
 
+        /**
+         * @brief Builds a deme selector policy (for Island GA).
+         * @param node YAML node for selector config.
+         * @return unique_ptr to DemeSelector.
+         */
         static std::unique_ptr<DemeSelector<GeneType>> buildDemeSelector(const YAML::Node& node) {
             const auto type = node["type"].as<std::string>("elitism");
 
@@ -104,6 +144,6 @@ namespace galib::utils {
             throw std::invalid_argument("Unknown DemeSelector type: " + type);
         }
     };
-} // namespace galib::utils
+} // namespace galib::internal
 
 #endif // OPERATOR_BUILDER_H
