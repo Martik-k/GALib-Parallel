@@ -21,19 +21,38 @@
 
 namespace galib::benchmark {
 
-        template <typename GeneType = double>
-        class RastriginFunction : public FitnessFunction<GeneType> {
-        private:
-            std::size_t dimensions_m;
-			GeneType lower_bound_m;
-			GeneType upper_bound_m;
-            static constexpr double A = 10.0;
+    /**
+     * @brief Implementation of the Rastrigin function.
+     * 
+     * A highly multi-modal function with many local minima.
+     * Global minimum: f(0, ..., 0) = 0.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
+    template <typename GeneType = double>
+    class RastriginFunction : public FitnessFunction<GeneType> {
+    private:
+        std::size_t dimensions_m;
+        GeneType lower_bound_m;
+        GeneType upper_bound_m;
+        static constexpr double A = 10.0;
 
-        public:
-            explicit RastriginFunction(std::size_t dimensions, GeneType lower_bound, GeneType upper_bound)
-                : dimensions_m(dimensions), lower_bound_m(lower_bound), upper_bound_m(upper_bound) {}
+    public:
+        /**
+         * @brief Constructs the Rastrigin function with given dimensions and bounds.
+         * @param dimensions   Problem dimensionality.
+         * @param lower_bound  Uniform lower bound.
+         * @param upper_bound  Uniform upper bound.
+         */
+        explicit RastriginFunction(std::size_t dimensions, GeneType lower_bound, GeneType upper_bound)
+            : dimensions_m(dimensions), lower_bound_m(lower_bound), upper_bound_m(upper_bound) {}
 
-            double evaluate(const std::vector<GeneType>& genotype) const override {
+        /**
+         * @brief Evaluates the N-dimensional Rastrigin function.
+         * @param genotype Input vector.
+         * @return Fitness value.
+         */
+        double evaluate(const std::vector<GeneType>& genotype) const override {
                 double sum = A * dimensions_m;
 
                 for (GeneType gene : genotype) {

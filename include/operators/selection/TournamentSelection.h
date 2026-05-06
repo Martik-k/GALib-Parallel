@@ -11,17 +11,35 @@
 
 namespace galib {
 
+    /**
+     * @brief Performs k-way tournament selection.
+     * 
+     * Randomly samples @p k individuals from the population and returns the one 
+     * with the best fitness. Higher tournament sizes result in higher selection pressure.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType>
     class TournamentSelection : public Selection<GeneType> {
     private:
         std::size_t tournament_size_m;
     public:
+        /**
+         * @brief Constructs the selector.
+         * @param tournament_size Number of candidates per tournament. Must be >= 1.
+         * @throws std::invalid_argument if tournament_size is 0.
+         */
         explicit TournamentSelection(size_t tournament_size) : tournament_size_m(tournament_size) {
             if (tournament_size_m == 0) {
                 throw std::invalid_argument("Tournament size must be at least 1.");
             }
         }
 
+        /**
+         * @brief Conducts a tournament and returns the winner.
+         * @param population Source population.
+         * @return Reference to the fittest individual in the sampled group.
+         */
         const Individual<GeneType>& select(const Population<GeneType>& population) override {
 
             thread_local static std::random_device rd;
