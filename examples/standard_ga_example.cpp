@@ -12,8 +12,8 @@ int main(int argc, char* argv[]) {
         std::string config_path = (argc > 1) ? argv[1] : "configs/full_config_example.yaml";
 
         constexpr std::size_t NUM_GENES = 50;
-        const std::size_t POPULATION_SIZE = 50;
-        
+        const std::size_t POPULATION_SIZE = 1000;
+
         benchmark::RastriginFunction<double> fitness_fn(NUM_GENES, -5.12, 5.12);
 
         const auto algo = utils::AlgorithmBuilder<double>::build(config_path, fitness_fn);
@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Population size: " << POPULATION_SIZE << std::endl;
 
         algo->enableConsoleLogging(50);
-        algo->enableFileLogging("logs/evolution.csv", 1);
+        // algo->enableFileLogging("logs/evolution.csv", 1);  // Commented out, as build() already sets up logging from YAML
 
         algo->run(population);
 

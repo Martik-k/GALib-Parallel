@@ -247,6 +247,7 @@ namespace galib::utils {
             DEParams params;
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::DE::CR_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
+            params.threads = node["threads"].as<std::size_t>(Defaults::THREADS);
 
             if (node["differential_evolution"]) {
                 params.f_weight = node["differential_evolution"]["f_weight"].as<double>(Defaults::DE::F_WEIGHT);
@@ -256,7 +257,8 @@ namespace galib::utils {
                 ff,
                 params.f_weight,
                 params.crossover_rate,
-                params.max_generations
+                params.max_generations,
+                params.threads
             );
         }
 
