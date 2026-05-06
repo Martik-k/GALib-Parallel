@@ -25,6 +25,9 @@ namespace galib {
     public:
         using EvalFunc = std::function<double(const std::vector<GeneType>&)>;
 
+        using FitnessFunction<GeneType>::getLowerBound;
+        using FitnessFunction<GeneType>::getUpperBound;
+
         /**
          * @brief Constructor for uniform bounds.
          * @param dims   Number of dimensions.

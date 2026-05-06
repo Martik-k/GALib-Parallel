@@ -8,6 +8,9 @@
 \usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{fontawesome5}
+\usepackage{float}
+\usepackage[section]{placeins}
+
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
 T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 \begin{document}
@@ -102,10 +105,11 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \section{Algorithmic Models}
     
     \subsection{Generational Genetic Algorithm}
-    First, we implemented a basic Real-Coded Genetic Algorithm (RCGA). It uses continuous variables (double type) to find the minimum of mathematical functions. 
+    First, we implemented a basic Real-Coded Genetic Algorithm (RCGA). It uses continuous variables (double type) to find the minimum of mathematical functions.
 
     The whole algorithm is written using C++ templates. This is very useful because it makes the library flexible and easy to reuse. We can easily apply different data types or new fitness functions without changing the main code.
 
+    \subsubsection{Standard Parallel Implementation}
     The algorithm uses the following main operations:
     \begin{itemize}
         \item \textbf{Initialization:} We create the first population randomly. We use local random number generators for each thread. This makes the code thread-safe and prevents race conditions.
@@ -115,22 +119,8 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
         \item \textbf{Mutation:} We use Gaussian Mutation. It adds a small random number to the genes. This helps the algorithm make small steps to find the exact minimum, and sometimes big jumps to escape bad local zones.
     \end{itemize}
 
-    \subsection{CUDA Implementation of Generational Genetic Algorithm}
+    \subsubsection{CUDA-Accelerated Backend}
     We implemented a CUDA backend for the generational GA to accelerate its most expensive data-parallel stages: fitness evaluation, crossover, mutation, and elite selection. The implementation uses dedicated CUDA kernels, stateless on-device random generation, FP32 internal computation with CUDA fast math, and a resident device population to minimize host-device transfers.
-
-    Experiments were run on an NVIDIA GeForce RTX 4050 Laptop GPU (6 GB VRAM) using the HeavyTrig benchmark. Figure~\ref{fig:cuda_ga_speedup} summarizes measured speedups against the OpenMP CPU backend.
-
-    \begin{figure}[t]
-        \centering
-        \includegraphics[width=\columnwidth]{media/cuda_ga_speedup.png}
-        \caption{CUDA speedup for Generational GA on HeavyTrig benchmark.}
-        \label{fig:cuda_ga_speedup}
-    \end{figure}
-
-    The measured range shows consistent GPU advantage for compute-heavy workloads, with speedups from 3.70$\times$ to 12.04$\times$.
-
-
-    
 
     \subsection{Differential Evolution}
     Differential Evolution (DE) is implemented for efficient optimization of continuous variables. Unlike traditional mutation operators, DE generates new candidate solutions by taking the difference between randomly selected individuals in the population. The mutation strategy used is DE/rand/1, where for each individual $x_i$, a mutant vector $v_i$ is created as:
@@ -170,8 +160,101 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \subsection{Differential Evolution with Hybrid OpenMP/AVX}
     We plan to implement Differential Evolution (DE) for faster optimization of continuous variables. Unlike basic mutation, DE creates new solutions by calculating the mathematical difference between existing individuals in the population. This helps the algorithm adapt its search direction and converge much faster.
 
+    \section{Benchmarks}
+
+    \subsection{Comparison of CUDA and Parallel Standard GA}
+    We compared the CUDA-accelerated backend against the multi-threaded OpenMP implementation on an NVIDIA GeForce RTX 4050 GPU using the HeavyTrig benchmark. As shown in Figure~\ref{fig:cuda_ga_speedup}, the GPU provides a substantial advantage for compute-intensive workloads, achieving speedups between 3.70$\times$ and 12.04$\times$ depending on population size and complexity.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\columnwidth]{media/cuda_ga_speedup.png}
+        \caption{CUDA speedup for Generational GA on HeavyTrig benchmark.}
+        \label{fig:cuda_ga_speedup}
+    \end{figure}
+
+    \subsection{Hybrid Island GA Cluster Scaling}
+    The scalability of the Hybrid Island Model was evaluated on a heterogeneous cluster of three nodes (18 cores total). 
+
+    \subsubsection{Hardware Specifications}
+    The benchmark was conducted on three physical machines with the following hardware configurations:
+    \begin{itemize}
+        \item \textbf{Worker 1:} 8 physical cores @ [Freq] GHz, [Size] GB [Type] RAM @ [Speed] MHz.
+        \item \textbf{Worker 2:} 6 physical cores @ 3.3 GHz, 16 GB DDR5 RAM @ 4800 MHz.
+        \item \textbf{Worker 3:} 4 physical cores @ [Freq] GHz, [Size] GB [Type] RAM @ [Speed] MHz.
+    \end{itemize}
+
+    \subsubsection{Methodology and Load Balancing}
+    To demonstrate strong scaling with a fixed workload of 9 islands, we utilized a proportional load balancing strategy. Islands were assigned based on core counts (4:3:2) to ensure each island had equal compute resources (2 cores) and reached synchronization points simultaneously, maximizing cluster efficiency.
+
+    \subsubsection{Experimental Results}
+    Scaling performance was measured across three hardware tiers, with results summarized in Figure~\ref{fig:cluster_bench}. The hybrid architecture demonstrated effective scaling; transition to a two-machine configuration (14 cores) yielded a 2.02$\times$ speedup over the single-node baseline. The full 18-core cluster further improved performance, reaching a 2.32$\times$ total speedup.
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\columnwidth]{media/cluster_benchmark_plot.png}
+        \caption{Strong scaling results for the Hybrid Island GA across the heterogeneous cluster.}
+        \label{fig:cluster_bench}
+    \end{figure}
+
+    \section{Library Usage}
+    
+    \subsection{Installation and Compilation}
+    % This subsection will describe the requirements and build process.
+
+    \subsection{User API and Programming Model}
+    The library provides a high-level, data-driven API designed to minimize boilerplate. The programming model follows three primary stages: problem definition, engine instantiation, and evolution.
+
+    \subsubsection{Problem Definition}
+    Users define optimization problems by implementing the \texttt{FitnessFunction} interface or, more conveniently, by using the \texttt{FunctionalFitness} wrapper. The latter allows for inline problem definition using C++ lambdas, as shown in the example below.
+
+    \subsubsection{Engine Instantiation}
+    The library supports two modes of instantiation:
+    \begin{itemize}
+        \item \textbf{Configuration-Driven (Recommended):} The \texttt{AlgorithmBuilder} factory parses a YAML file and automatically assembles the requested algorithm (Standard, Island, etc.) with its corresponding operators and parameters.
+        \item \textbf{Manual Construction:} For specialized use cases, users can manually instantiate algorithms (e.g., \texttt{StandardGA}) by passing operator unique pointers and parameter structures directly to the constructor.
+    \end{itemize}
+
+    \subsubsection{Configuration Parameters}
+    The YAML configuration system centralizes algorithm behavior. Key parameters include:
+    \begin{itemize}
+        \item \textbf{threads:} Sets the OpenMP thread count (0 for system maximum).
+        \item \textbf{max\_generations:} Evolution limit.
+        \item \textbf{mutation\_rate} and \textbf{crossover\_rate:} Operator probabilities.
+        \item \textbf{selection/mutation/crossover:} Type-based operator selection.
+    \end{itemize}
+
+    \subsubsection{Minimal Usage Example}
+    The following snippet demonstrates the complete workflow for a 2D minimization task:
+
+    \begin{figure}[H]
+        \begin{minipage}{\columnwidth}
+\begin{verbatim}
+// 1. Define problem via lambda
+FunctionalFitness<double> fitness(2, -5.0, 5.0, 
+    [](const std::vector<double>& p) {
+        return p[0]*p[0] + p[1]*p[1];
+    });
+
+// 2. Build algorithm from YAML config
+auto ga = utils::AlgorithmBuilder<double>::build(
+    "config.yaml", fitness);
+
+// 3. Evolve population
+Population<double> pop(100, 2);
+pop.initialize(fitness.getLowerBound(), 
+               fitness.getUpperBound());
+ga->run(pop);
+
+// 4. Get results
+std::cout
+    << "Best Fitness: "
+    << pop.getBestIndividual().getFitness()
+\end{verbatim}
+        \end{minipage}
+        \caption{Minimal GALib-Parallel usage example.}
+    \end{figure}
+
     \section{Conclusion}
-    % This section will summarize the library's development progress, highlighting the capabilities of the implemented parallelization strategies across specific hardware constraints.
 
     \section*{Acknowledgment}
 
