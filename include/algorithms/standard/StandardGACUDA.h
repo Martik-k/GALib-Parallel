@@ -23,9 +23,42 @@
 namespace galib {
 namespace cuda {
 
+/**
+ * @brief Generational GA with the same interface as StandardGA, built for CUDA-enabled builds.
+ *
+ * Drop-in replacement for galib::StandardGA. The evolution loop (selection, crossover,
+ * mutation) runs on the CPU using OpenMP, making it fully compatible with any pluggable
+ * operator. When the library is compiled with CUDA support, the CUDA runtime is linked
+ * and GPU-accelerated fitness evaluation can be added in future iterations.
+ *
+ * The algorithm follows a generational model:
+ *  1. Evaluate the initial population.
+ *  2. For each generation: optionally copy the elite individual, then fill the rest of
+ *     the population via selection → crossover → mutation.
+ *  3. Evaluate the new population and repeat.
+ *
+ * @tparam GeneType Numeric type of each gene (default: double).
+ *
+ * @note Prefer constructing through galib::utils::AlgorithmBuilder with
+ *       `algorithm.standard.use_cuda: true` rather than instantiating directly.
+ * @note Fitness is minimised — lower values are considered better.
+ */
 template <typename GeneType = double>
 class StandardGACUDA : public Algorithm<GeneType> {
 public:
+    /**
+     * @brief Constructs the algorithm with all required operators and parameters.
+     *
+     * @param ff      Fitness function used to evaluate individuals. Must outlive this object.
+     * @param sel     Selection operator (e.g. TournamentSelection). Ownership is transferred.
+     * @param mu      Mutation operator (e.g. GaussianMutation). Ownership is transferred.
+     * @param cs      Crossover operator (e.g. SinglePointCrossover). Ownership is transferred.
+     * @param m_rate  Probability [0, 1] that any individual gene is mutated.
+     * @param c_rate  Probability [0, 1] that two parents produce children via crossover;
+     *                otherwise parents are copied unchanged.
+     * @param max_gen Number of generations to run.
+     * @param elitism If true, the best individual is always copied to the next generation.
+     */
     StandardGACUDA(
         FitnessFunction<GeneType>& ff,
         std::unique_ptr<Selection<GeneType>> sel,
@@ -44,8 +77,29 @@ public:
         max_generations_m(max_gen),
         use_elitism_m(elitism) {}
 
-    void enableLogging(const std::string& filename) { log_file_m = filename; }
+    /**
+     * @brief Enables per-generation CSV logging to a file.
+     *
+     * When set, every individual's first two gene values (x, y) are written each
+     * generation. Useful for 2-D visualisation. Has no effect if called after run().
+     *
+     * @param filename Path to the output CSV file. Parent directories are created
+     *                 automatically if they do not exist.
+     */
+    void enableLogging(const std::string& filename) override { log_file_m = filename; }
 
+    /**
+     * @brief Runs the evolutionary optimisation loop.
+     *
+     * Evolves @p population in-place for max_gen generations. The population must
+     * be initialised with valid gene values before calling this method.
+     *
+     * Progress is printed to stdout every 50 generations unless a ConsoleLogger is
+     * attached via enableConsoleLogging(), in which case that logger is used instead.
+     *
+     * @param population In/out: the population to evolve. Modified in place.
+     * @note Population must not be empty.
+     */
     void run(Population<GeneType>& population) override {
         std::ofstream log;
         if (!log_file_m.empty()) {
@@ -141,6 +195,10 @@ private:
 
     std::string log_file_m = "";
 
+    /**
+     * @brief Evaluates fitness for every individual in the population using OpenMP.
+     * @param population The population to evaluate. Fitness values are set in place.
+     */
     void evaluatePopulation(Population<GeneType>& population) {
         int population_size = static_cast<int>(population.size());
         #pragma omp parallel for schedule(dynamic)
