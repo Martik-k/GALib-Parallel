@@ -59,6 +59,8 @@ namespace galib {
         virtual void enableFileLogging(const std::string& path, std::size_t interval) {
             file_logger_m = std::make_unique<utils::FileLogger<GeneType>>(path, interval);
         }
+
+        virtual void enableLogging(const std::string&) {}
     };
 
 } // namespace galib
