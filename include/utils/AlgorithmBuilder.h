@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <iostream>
 #include <memory>
 #include <yaml-cpp/yaml.h>
 
@@ -13,8 +14,8 @@
 #include "algorithms/cellular/CellularGAParams.h"
 #include "algorithms/differential-evolution/DifferentialEvolutionGA.h"
 #include "algorithms/differential-evolution/DEParams.h"
-#ifdef GALIB_HAS_CUDA
-#include "algorithms/StandardGACUDA.h"
+#ifdef GALIB_WITH_CUDA
+#include "algorithms/standard/StandardGACUDA.h"
 #endif
 
 #include "utils/OperatorBuilder.h"
@@ -159,10 +160,8 @@ namespace galib::utils {
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
 
-#ifdef GALIB_HAS_CUDA
+#ifdef GALIB_WITH_CUDA
             if (use_cuda) {
-                // NOTE: StandardGACUDA must inherit from Algorithm<GeneType> 
-                // and have a constructor compatible with StandardGA.
                 return std::make_unique<cuda::StandardGACUDA<GeneType>>(
                     ff,
                     std::move(selection),
@@ -173,6 +172,11 @@ namespace galib::utils {
                     params.max_generations,
                     params.use_elitism
                 );
+            }
+#else
+            if (use_cuda) {
+                std::cerr << "[GALib] Warning: use_cuda=true but library was built without CUDA support."
+                             " Falling back to StandardGA (CPU).\n";
             }
 #endif
 

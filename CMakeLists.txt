@@ -93,6 +93,15 @@ if (GALIB_BUILD_EXAMPLES)
         target_link_libraries(de_example PRIVATE ga_lib)
     endif ()
 
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/test_ga_cuda.cpp")
+        add_executable(test_ga_cuda examples/test_ga_cuda.cpp)
+        target_link_libraries(test_ga_cuda PRIVATE ga_lib)
+        if (TARGET ga_cuda)
+            target_link_libraries(test_ga_cuda PRIVATE ga_cuda)
+            target_compile_definitions(test_ga_cuda PRIVATE GALIB_WITH_CUDA=1)
+        endif ()
+    endif ()
+
     if (GALIB_BUILD_PYTHON_TOOLS)
         find_package(Python3 COMPONENTS Interpreter)
 
