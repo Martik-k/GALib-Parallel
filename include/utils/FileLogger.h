@@ -55,7 +55,11 @@ namespace galib::utils {
             if (!header_written_m) {
                 file.open(path_m, std::ios::out);
                 if (file.is_open()) {
-                    file << "generation,individual_idx,fitness,genotype\n";
+                    file << "generation,individual_idx,fitness";
+                    for (std::size_t j = 0; j < pop.getNumGenes(); ++j) {
+                        file << ",gene_" << j;
+                    }
+                    file << ",genotype\n";
                     header_written_m = true;
                 }
             } else {
@@ -67,8 +71,14 @@ namespace galib::utils {
             }
 
             for (std::size_t i = 0; i < pop.size(); ++i) {
-                file << gen << "," << i << "," << pop[i].getFitness() << ",";
                 const auto& genotype = pop[i].getGenotype();
+                file << gen << "," << i << "," << pop[i].getFitness();
+                
+                for (const auto& gene : genotype) {
+                    file << "," << gene;
+                }
+                file << ",";
+
                 for (std::size_t j = 0; j < genotype.size(); ++j) {
                     file << genotype[j] << (j == genotype.size() - 1 ? "" : ";");
                 }
