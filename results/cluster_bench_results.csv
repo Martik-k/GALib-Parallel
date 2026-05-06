@@ -1,0 +1,4 @@
+Configuration,Hosts Mapping,Average Time (s)
+1_Machine_Best,"master:0,worker1:9,worker3:0",121.52
+2_Machines_TwoBest,"master:4,worker1:5,worker3:0",60.07
+3_Machines_All,"master:3,worker1:4,worker3:2",52.36

@@ -48,9 +48,8 @@ myvenv/
 Thumbs.db
 
 # === Media & Documentation ===
-*.mp4
-*.gif
 visualizations/
+output/
 articles/
 
 # === LaTeX ===
