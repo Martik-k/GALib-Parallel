@@ -5,16 +5,15 @@
 
 #include <cstddef>
 
+#include "algorithms/AlgorithmConfig.h"
+
 namespace galib {
 
     /**
      * @brief Parameters for the Standard (Generational) Genetic Algorithm.
      */
-    struct StandardGAParams {
-        double mutation_rate = 0.05;
-        double crossover_rate = 0.8;
-        std::size_t max_generations = 100;
-        bool use_elitism = true;
+    struct StandardGAParams : public AlgorithmConfig {
+        // All fields inherited from AlgorithmConfig
     };
 
 } // namespace galib

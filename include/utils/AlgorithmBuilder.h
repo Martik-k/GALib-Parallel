@@ -6,17 +6,24 @@
 #include <memory>
 #include <yaml-cpp/yaml.h>
 
-#include "utils/OperatorBuilder.h"
-
+#include "algorithms/Algorithm.h"
 #include "algorithms/standard/StandardGA.h"
 #include "algorithms/standard/StandardGAParams.h"
 #include "algorithms/cellular/CellularGA.h"
 #include "algorithms/cellular/CellularGAParams.h"
 #include "algorithms/differential-evolution/DifferentialEvolutionGA.h"
 #include "algorithms/differential-evolution/DEParams.h"
+#ifdef GALIB_HAS_CUDA
+#include "algorithms/StandardGACUDA.h"
+#endif
+
+#include "utils/OperatorBuilder.h"
+
 #ifdef GALIB_HAS_MPI
 #include "algorithms/island/IslandGA.h"
-#include "algorithms/island/IslandConfig.h"
+#include "algorithms/island/IslandGAParams.h"
+#include "algorithms/island/migration/replacers/WorstReplacer.h"
+#include "algorithms/island/migration/selectors/ElitismSelector.h"
 #endif
 
 #include "core/FitnessFunction.h"
@@ -33,7 +40,6 @@
 #endif
 
 namespace galib::utils {
-
     template <typename GeneType>
     class AlgorithmBuilder {
     private:
@@ -70,10 +76,71 @@ namespace galib::utils {
 
     public:
         /**
+         * @brief Unified build method that determines the algorithm type from config.
+         */
+#ifdef GALIB_HAS_MPI
+        static std::unique_ptr<Algorithm<GeneType>> build(
+            const std::string& config_path,
+            FitnessFunction<GeneType>& ff,
+            MPI_Comm mpi_comm = MPI_COMM_NULL
+        ) {
+#else
+            static std::unique_ptr<Algorithm<GeneType>> build(
+                const std::string& config_path,
+                FitnessFunction<GeneType>& ff
+            ) {
+#endif
+            YAML::Node full_config = YAML::LoadFile(config_path);
+            const auto node = full_config["algorithm"];
+            if (!node) {
+                throw std::invalid_argument("Missing 'algorithm' section in config: " + config_path);
+            }
+
+            const auto type = node["type"].as<std::string>("standard");
+            std::unique_ptr<Algorithm<GeneType>> algo;
+
+            if (type == "standard") {
+                algo = buildStandardGA(full_config, ff);
+            } else if (type == "cellular") {
+                algo = buildCellularGA(full_config, ff);
+            } else if (type == "differential_evolution") {
+                algo = buildDifferentialEvolutionGA(full_config, ff);
+            } else if (type == "island") {
+#ifdef GALIB_HAS_MPI
+                algo = buildIslandGA(full_config, ff, mpi_comm);
+#else
+                throw std::runtime_error("Island GA requested but library was built without MPI support.");
+#endif
+            } else {
+                throw std::invalid_argument("Unknown algorithm type: " + type);
+            }
+
+            // Setup Logging
+            if (full_config["output"]) {
+                const auto out = full_config["output"];
+
+                // Console Logging
+                if (out["console"] && out["console"]["enabled"].as<bool>(false)) {
+                    auto interval = out["console"]["interval"].as<std::size_t>(1);
+                    algo->enableConsoleLogging(interval);
+                }
+
+                // File Logging
+                if (out["file"] && out["file"]["enabled"].as<bool>(false)) {
+                    auto path = out["file"]["path"].as<std::string>("evolution.csv");
+                    auto interval = out["file"]["interval"].as<std::size_t>(1);
+                    algo->enableFileLogging(path, interval);
+                }
+            }
+
+            return algo;
+        }
+
+        /**
          * @brief Builds a StandardGA instance from the root configuration.
          */
-        static std::unique_ptr<StandardGA<GeneType>> buildStandardGA(
-            const YAML::Node& config, 
+        static std::unique_ptr<Algorithm<GeneType>> buildStandardGA(
+            const YAML::Node& config,
             FitnessFunction<GeneType>& ff
         ) {
             const auto node = config["algorithm"];
@@ -92,6 +159,23 @@ namespace galib::utils {
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
 
+#ifdef GALIB_HAS_CUDA
+            if (use_cuda) {
+                // NOTE: StandardGACUDA must inherit from Algorithm<GeneType> 
+                // and have a constructor compatible with StandardGA.
+                return std::make_unique<cuda::StandardGACUDA<GeneType>>(
+                    ff,
+                    std::move(selection),
+                    std::move(mutation),
+                    std::move(crossover),
+                    params.mutation_rate,
+                    params.crossover_rate,
+                    params.max_generations,
+                    params.use_elitism
+                );
+            }
+#endif
+
             return std::make_unique<StandardGA<GeneType>>(
                 ff,
                 std::move(selection),
@@ -107,8 +191,8 @@ namespace galib::utils {
         /**
          * @brief Builds a CellularGA instance from the root configuration.
          */
-        static std::unique_ptr<CellularGA<GeneType>> buildCellularGA(
-            const YAML::Node& config, 
+        static std::unique_ptr<Algorithm<GeneType>> buildCellularGA(
+            const YAML::Node& config,
             FitnessFunction<GeneType>& ff
         ) {
             const auto node = config["algorithm"];
@@ -116,13 +200,18 @@ namespace galib::utils {
             params.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
-            
+
             if (node["cellular"]) {
                 params.rows = node["cellular"]["rows"].as<std::size_t>(Defaults::Cellular::ROWS);
                 params.cols = node["cellular"]["cols"].as<std::size_t>(Defaults::Cellular::COLS);
                 params.use_local_elitism = node["cellular"]["use_local_elitism"].as<bool>(Defaults::Cellular::USE_LOCAL_ELITISM);
             }
 
+            // NOTE: CellularGA currently does not support the Algorithm<GeneType> interface
+            // because it still uses GridPopulation instead of Population.
+            // This will be fixed in the future.
+
+            /*
             auto selection = OperatorBuilder<GeneType>::buildLocalSelection(node["selection"]);
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
@@ -135,20 +224,25 @@ namespace galib::utils {
                 params.mutation_rate,
                 params.crossover_rate,
                 params.max_generations,
+                params.rows,
+                params.cols,
                 params.use_local_elitism
             );
+            */
+
+            throw std::runtime_error("CellularGA is not yet implemented to support the common Algorithm interface.");
         }
 
         /**
          * @brief Builds a DifferentialEvolutionGA instance from the root configuration.
          */
-        static std::unique_ptr<DifferentialEvolutionGA<GeneType>> buildDifferentialEvolutionGA(
+        static std::unique_ptr<Algorithm<GeneType>> buildDifferentialEvolutionGA(
             const YAML::Node& config,
             FitnessFunction<GeneType>& ff
         ) {
             const auto node = config["algorithm"];
             DEParams params;
-            params.cr_rate = node["crossover_rate"].as<double>(Defaults::DE::CR_RATE);
+            params.crossover_rate = node["crossover_rate"].as<double>(Defaults::DE::CR_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
 
             if (node["differential_evolution"]) {
@@ -158,23 +252,22 @@ namespace galib::utils {
             return std::make_unique<DifferentialEvolutionGA<GeneType>>(
                 ff,
                 params.f_weight,
-                params.cr_rate,
+                params.crossover_rate,
                 params.max_generations
-            ); 
+            );
         }
 
         /**
          * @brief Builds an IslandGA instance from the root configuration.
-         * This handles the creation of the Communicator, Serializer, Buffer, and Topology.
          */
 #ifdef GALIB_HAS_MPI
-        static std::unique_ptr<IslandGA<GeneType>> buildIslandGA(
-            const YAML::Node& config, 
+        static std::unique_ptr<Algorithm<GeneType>> buildIslandGA(
+            const YAML::Node& config,
             FitnessFunction<GeneType>& ff,
             MPI_Comm mpi_comm
         ) {
             const auto node = config["algorithm"];
-            IslandConfig island_config;
+            IslandGAParams island_config;
             island_config.max_generations = node["max_generations"].as<std::size_t>(Defaults::Island::MAX_GENERATIONS);
             island_config.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
             island_config.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
@@ -183,19 +276,18 @@ namespace galib::utils {
             std::string topology_type = Defaults::Island::TOPOLOGY;
 
             if (node["island"]) {
-                island_config.migration_interval = node["island"]["migration_interval"].as<std::size_t>(Defaults::Island::MIGRATION_INTERVAL);
+                island_config.migration_interval = node["island"]["migration_interval"].as<std::size_t>(
+                    Defaults::Island::MIGRATION_INTERVAL);
                 island_config.migration_size = node["island"]["migration_size"].as<std::size_t>(Defaults::Island::MIGRATION_SIZE);
                 island_config.immigration_quota = node["island"]["immigration_quota"].as<double>(Defaults::Island::IMMIGRATION_QUOTA);
                 buffer_capacity = node["island"]["buffer_capacity"].as<std::size_t>(Defaults::Island::BUFFER_CAPACITY);
                 topology_type = node["island"]["topology"].as<std::string>(Defaults::Island::TOPOLOGY);
             }
 
-            // 1. Setup Genetic Operators
             auto selection = OperatorBuilder<GeneType>::buildSelection(node["selection"]);
             auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
             auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
-            
-            // 2. Setup Migration Operators
+
             std::unique_ptr<DemeReplacer<GeneType>> replacer;
             if (node["island"] && node["island"]["replacer"]) {
                 replacer = OperatorBuilder<GeneType>::buildDemeReplacer(node["island"]["replacer"]);
@@ -210,16 +302,15 @@ namespace galib::utils {
                 selector = std::make_unique<ElitismSelector<GeneType>>();
             }
 
-            // 3. Setup Infrastructure
-            auto serializer = std::make_unique<BinarySerializer<GeneType>>();
+            auto serializer = std::make_unique<internal::BinarySerializer<GeneType>>();
             std::size_t max_payload = serializer->getSerializedSize(island_config.migration_size, ff.size());
-            auto comm = std::make_unique<MpiCommunicator<GeneType>>(*serializer, max_payload, mpi_comm);
-            auto buffer = std::make_unique<CircularBuffer<GeneType>>(buffer_capacity, island_config.migration_size);
-            
+            auto comm = std::make_unique<internal::MpiCommunicator<GeneType>>(*serializer, max_payload, mpi_comm);
+            auto buffer = std::make_unique<internal::CircularBuffer<GeneType>>(buffer_capacity, island_config.migration_size);
+
             std::unique_ptr<const Topology> topology;
             int world_size;
             MPI_Comm_size(mpi_comm, &world_size);
-            
+
             if (topology_type == "fully_connected") {
                 topology = std::make_unique<FullyConnectedTopology>(world_size);
             } else if (topology_type == "one_way_ring") {
@@ -233,23 +324,22 @@ namespace galib::utils {
             bool elitism = node["use_elitism"].as<bool>(true);
 
             return std::make_unique<IslandGA<GeneType>>(
-                ff, 
-                std::move(selection), 
-                std::move(mutation), 
-                std::move(crossover), 
-                std::move(replacer), 
-                std::move(selector), 
-                std::move(buffer), 
-                std::move(comm), 
-                std::move(topology), 
+                ff,
+                std::move(selection),
+                std::move(mutation),
+                std::move(crossover),
+                std::move(replacer),
+                std::move(selector),
+                std::move(buffer),
+                std::move(comm),
+                std::move(topology),
                 std::move(serializer),
-                island_config, 
+                island_config,
                 elitism
             );
         }
 #endif
     };
-
 } // namespace galib::utils
 
 #endif // ALGORITHM_BUILDER_H

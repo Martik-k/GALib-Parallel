@@ -13,10 +13,12 @@
 #include <filesystem>
 #include <algorithm> // для std::clamp
 
+#include "algorithms/Algorithm.h"
+
 namespace galib {
 
     template <typename GeneType = double>
-    class DifferentialEvolutionGA {
+    class DifferentialEvolutionGA : public Algorithm<GeneType> {
     private:
         FitnessFunction<GeneType>& fitness_function_m;
 
@@ -44,7 +46,7 @@ namespace galib {
 
         void enableLogging(const std::string& filename) { log_file_m = filename; }
 
-        void run(Population<GeneType>& population) {
+        void run(Population<GeneType>& population) override {
             std::ofstream log;
             if (!log_file_m.empty()) {
                 std::filesystem::path p(log_file_m);

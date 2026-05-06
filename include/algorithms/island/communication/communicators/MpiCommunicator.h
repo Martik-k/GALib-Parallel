@@ -9,7 +9,7 @@
 #include <vector>
 #include <cstdint>
 
-namespace galib {
+namespace galib::internal {
     template <typename GeneType>
     class MpiCommunicator : public Communicator<GeneType> {
     private:
@@ -31,7 +31,7 @@ namespace galib {
     public:
         explicit MpiCommunicator(Serializer<GeneType>& serializer,
                                  const std::size_t max_payload_size,
-                                 MPI_Comm comm = MPI_COMM_WORLD)
+                                 const MPI_Comm comm = MPI_COMM_WORLD)
             : serializer_m(serializer), comm_m(comm) {
             int initialized;
             MPI_Initialized(&initialized);

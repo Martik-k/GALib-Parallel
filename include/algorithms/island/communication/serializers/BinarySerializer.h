@@ -10,7 +10,7 @@
 #include <algorithm>
 #include <type_traits>
 
-namespace galib {
+namespace galib::internal {
     template <typename GeneType>
     class BinarySerializer : public Serializer<GeneType> {
         static_assert(std::is_trivially_copyable_v<GeneType>, "GeneType must be trivially copyable for binary serialization");

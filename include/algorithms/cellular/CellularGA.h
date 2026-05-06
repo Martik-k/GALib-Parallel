@@ -20,10 +20,12 @@
 #include <filesystem>
 #include <string>
 
+#include "algorithms/Algorithm.h"
+
 namespace galib {
 
 template <typename GeneType = double>
-class CellularGA {
+class CellularGA : public Algorithm<GeneType> {
 private:
     FitnessFunction<GeneType>& fitness_function_m;
     std::unique_ptr<LocalSelection<GeneType>> local_selection_m;
@@ -35,24 +37,23 @@ private:
     std::size_t max_generations_m;
     bool use_local_elitism_m;
 
+    std::size_t rows_m;
+    std::size_t cols_m;
+
     std::string log_file_m = "";
 
 private:
-    void evaluatePopulation(GridPopulation<GeneType>& population) {
-        tbb::parallel_for(
-            tbb::blocked_range<std::size_t>(0, population.size()),
-            [&](const tbb::blocked_range<std::size_t>& range) {
-                for (std::size_t i = range.begin(); i < range.end(); ++i) {
-                    auto& individual = population.linearAt(i);
-                    double score = fitness_function_m.evaluate(individual.getGenotype());
-                    individual.setFitness(score);
-                }
-            }
-        );
+    void evaluatePopulation(Population<GeneType>& population) {
+        const std::size_t population_size = population.size();
+        #pragma omp parallel for schedule(dynamic)
+        for (int i = 0; i < static_cast<int>(population_size); ++i) {
+            double score = fitness_function_m.evaluate(population[i].getGenotype());
+            population[i].setFitness(score);
+        }
     }
 
     Individual<GeneType> evolveCell(
-        const GridPopulation<GeneType>& population,
+        const Population<GeneType>& population,
         std::size_t row,
         std::size_t col
     ) const {
@@ -60,7 +61,9 @@ private:
         thread_local static std::mt19937_64 gen(rd());
         thread_local static std::uniform_real_distribution<double> dist(0.0, 1.0);
 
-        const Individual<GeneType>& current = population.at(row, col);
+        const Individual<GeneType>& current = population[row * cols_m + col];
+        // Note: For now we still pass the population to local_selection_m.
+        // We assume LocalSelection::select is updated to take Population or we just use it as is if it's templated.
         const Individual<GeneType>& neighbor = local_selection_m->select(population, row, col);
 
         Individual<GeneType> child1;
@@ -106,6 +109,8 @@ public:
         double m_rate,
         double c_rate,
         std::size_t max_gen,
+        std::size_t rows,
+        std::size_t cols,
         bool elitism = false
     )
         : fitness_function_m(ff),
@@ -115,6 +120,8 @@ public:
           mutation_rate_m(m_rate),
           crossover_rate_m(c_rate),
           max_generations_m(max_gen),
+          rows_m(rows),
+          cols_m(cols),
           use_local_elitism_m(elitism) {}
 
     void enableLogging(const std::string& filename) {

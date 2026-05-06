@@ -6,7 +6,7 @@
 #include "core/Individual.h"
 #include <vector>
 
-namespace galib {
+namespace galib::internal {
     template <typename GeneType>
     class MigrationBuffer {
     public:
