@@ -16,6 +16,14 @@
 
 namespace galib::benchmark {
 
+    /**
+     * @brief Implementation of the Sphere function.
+     * 
+     * A simple unimodal function representing an n-dimensional paraboloid.
+     * Global minimum: f(0, ..., 0) = 0.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType = double>
         class SphereFunction : public FitnessFunction<GeneType> {
         private:
@@ -23,9 +31,20 @@ namespace galib::benchmark {
             GeneType lower_bound;
             GeneType upper_bound;
         public:
+            /**
+             * @brief Constructs the Sphere function with given dimensions and bounds.
+             * @param dim  Problem dimensionality.
+             * @param lb   Uniform lower bound.
+             * @param ub   Uniform upper bound.
+             */
             explicit SphereFunction(const std::size_t dim, GeneType lb, GeneType ub)
                 : dimensions(dim), lower_bound(lb), upper_bound(ub) {}
 
+            /**
+             * @brief Evaluates the N-dimensional Sphere function.
+             * @param phenotype Input vector.
+             * @return Fitness value.
+             */
             double evaluate(const std::vector<GeneType>& phenotype) const override {
                 double sum = 0;
                 for (GeneType gene : phenotype) {

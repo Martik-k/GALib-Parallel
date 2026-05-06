@@ -12,6 +12,14 @@
 
 namespace galib::benchmark {
 
+    /**
+     * @brief Implementation of De Jong's Function F5 (Shekel's Foxholes).
+     * 
+     * A highly multi-modal 2D function with 25 local minima (foxholes).
+     * Global minimum: f(-32, -32) ≈ 0.998.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType = double>
     class DeJongF5Function : public FitnessFunction<GeneType> {
     private:
@@ -23,6 +31,12 @@ namespace galib::benchmark {
         DeJongF5Function() = default;
         ~DeJongF5Function() override = default;
 
+        /**
+         * @brief Evaluates the foxholes function.
+         * @param phenotype Must have exactly 2 elements.
+         * @return Fitness value.
+         * @throws std::invalid_argument if phenotype size != 2.
+         */
         double evaluate(const std::vector<GeneType>& phenotype) const override {
             if (phenotype.size() != 2) {
                 throw std::invalid_argument(

@@ -13,6 +13,14 @@
 
 namespace galib::benchmark {
 
+/**
+ * @brief A computationally intensive trigonometric benchmark function.
+ * 
+ * Designed to test the library's parallel scaling capabilities by introducing 
+ * a heavy workload in the fitness evaluation via repeated sine/cosine iterations.
+ * 
+ * @tparam GeneType The numeric type of the genes.
+ */
 template <typename GeneType = double>
 class HeavyTrigFunction : public FitnessFunction<GeneType> {
 private:
@@ -22,6 +30,13 @@ private:
     std::size_t repeat_count_m;
 
 public:
+    /**
+     * @brief Constructs the benchmark.
+     * @param dimensions   Number of dimensions.
+     * @param lower_bound  Uniform lower bound.
+     * @param upper_bound  Uniform upper bound.
+     * @param repeat_count Number of internal iterations per dimension (default: 64).
+     */
     explicit HeavyTrigFunction(std::size_t dimensions,
                                GeneType lower_bound,
                                GeneType upper_bound,
@@ -31,6 +46,11 @@ public:
           upper_bound_m(upper_bound),
           repeat_count_m(repeat_count) {}
 
+    /**
+     * @brief Evaluates the heavy trigonometric sum.
+     * @param phenotype Input vector.
+     * @return Fitness value.
+     */
     double evaluate(const std::vector<GeneType>& phenotype) const override {
         if (phenotype.size() != dimensions_m) {
             throw std::invalid_argument(
