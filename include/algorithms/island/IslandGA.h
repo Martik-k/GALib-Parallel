@@ -26,6 +26,15 @@
 
 
 namespace galib {
+/**
+ * @brief Implementation of the Island Model Genetic Algorithm (Coarse-Grained Parallel GA).
+ *
+ * This algorithm manages a single "Island" in an Archipelago. It evolves a local population
+ * independently and periodically migrates individuals to/from neighboring islands based on
+ * a defined topology. Parallelization within the island is handled via OpenMP.
+ *
+ * @tparam GeneType The numeric type of each gene (default: double).
+ */
     template <typename GeneType = double>
     class IslandGA : public Algorithm<GeneType> {
     private:
@@ -149,6 +158,22 @@ namespace galib {
         }
 
     public:
+        /**
+         * @brief Constructs an IslandGA instance.
+         *
+         * @param ff          Fitness function to minimize.
+         * @param sel         Selection operator for reproduction.
+         * @param mu          Mutation operator.
+         * @param cs          Crossover operator.
+         * @param replacer    Policy for integrating arrived migrants.
+         * @param selector    Policy for choosing individuals to migrate out.
+         * @param buffer      Thread-safe buffer for incoming migrants.
+         * @param comm        MPI communicator for network transport.
+         * @param topology    The logical graph structure of the archipelago.
+         * @param serializer  Object responsible for binary serialization.
+         * @param config      Island-specific parameters (migration interval, size, etc.).
+         * @param elitism     Whether to preserve the best individual locally (default: true).
+         */
         IslandGA(
             FitnessFunction<GeneType>& ff,
             std::unique_ptr<Selection<GeneType>> sel,
@@ -175,6 +200,15 @@ namespace galib {
             config_m(config), 
             use_elitism_m(elitism) {}
 
+        /**
+         * @brief Runs the evolutionary loop for this island.
+         *
+         * Executes the local GA loop while handling asynchronous migration events
+         * and final global synchronization of the best result.
+         *
+         * @param population The local population to evolve.
+         * @note  The population must be initialized before calling this method.
+         */
         void run(Population<GeneType>& population) override {
             if (population.empty()) { return; }
 

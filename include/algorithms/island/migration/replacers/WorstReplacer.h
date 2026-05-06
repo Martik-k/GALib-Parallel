@@ -12,9 +12,23 @@
 
 namespace galib {
 
+    /**
+     * @brief Replacement strategy that replaces the least fit individuals.
+     * 
+     * Identifies the worst @p N individuals in the local population and replaces
+     * them with the @p N arrived migrants.
+     * 
+     * @tparam GeneType The gene type of the individuals.
+     */
     template<typename GeneType>
     class WorstReplacer : public DemeReplacer<GeneType> {
     public:
+        /**
+         * @brief Replaces the worst local individuals.
+         * 
+         * @param population Local population.
+         * @param deme       Incoming migrants.
+         */
         void replaceDeme(
             Population<GeneType>& population,
             std::vector<Individual<GeneType>>&& deme
