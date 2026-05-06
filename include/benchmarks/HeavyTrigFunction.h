@@ -76,9 +76,8 @@ public:
         return sum;
     }
 
-    [[nodiscard]] std::size_t size() const override {
-        return dimensions_m;
-    }
+    [[nodiscard]] std::size_t size() const override { return dimensions_m; }
+    [[nodiscard]] std::string name() const override { return "HeavyTrig"; }
 
     GeneType getLowerBound(std::size_t) const override {
         return lower_bound_m;

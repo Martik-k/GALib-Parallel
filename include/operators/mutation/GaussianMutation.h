@@ -30,6 +30,8 @@ namespace galib {
         explicit GaussianMutation(double sigma)
             : sigma_m(sigma) {}
 
+        double getSigma() const { return sigma_m; }
+
         /**
          * @brief Adds Gaussian noise to the individual's genes.
          * @param individual    Target individual.

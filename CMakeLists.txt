@@ -112,14 +112,11 @@ if (GALIB_BUILD_EXAMPLES)
         endif ()
     endif ()
 
-<<<<<<< feature/user-interface-refactor
-=======
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/minimal_user_example.cpp")
         add_executable(minimal_example examples/minimal_user_example.cpp)
         target_link_libraries(minimal_example PRIVATE ga_lib)
     endif ()
 
->>>>>>> main
     if (GALIB_BUILD_PYTHON_TOOLS)
         find_package(Python3 COMPONENTS Interpreter)
 

@@ -237,9 +237,9 @@ namespace galib::utils {
                 params.use_local_elitism = node["cellular"]["use_local_elitism"].as<bool>(Defaults::Cellular::USE_LOCAL_ELITISM);
             }
 
-            auto selection = OperatorBuilder<GeneType>::buildLocalSelection(node["selection"]);
-            auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
-            auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
+            auto selection = internal::OperatorBuilder<GeneType>::buildLocalSelection(node["selection"]);
+            auto mutation = internal::OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
+            auto crossover = internal::OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
 
             return std::make_unique<CellularGA<GeneType>>(
                 ff,

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 #include <cstddef>
 
@@ -36,6 +37,17 @@ namespace galib {
          * @return Number of dimensions.
          */
         [[nodiscard]] virtual std::size_t size() const = 0;
+
+        /**
+         * @brief Short identifier used to select a GPU evaluation kernel.
+         *
+         * Override in benchmark subclasses to enable GPU-side evaluation
+         * ("Sphere", "Rastrigin", "HeavyTrig"). Return empty string (default)
+         * to use the CPU callback path.
+         *
+         * @return Problem name string, or "" for custom functions.
+         */
+        [[nodiscard]] virtual std::string name() const { return ""; }
 
         /**
          * @brief Gets the lower bound for a specific dimension.

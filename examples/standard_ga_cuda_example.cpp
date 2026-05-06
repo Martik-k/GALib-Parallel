@@ -1,6 +1,8 @@
 #include <iostream>
 #include <string>
 
+#include <yaml-cpp/yaml.h>
+
 #include "benchmarks/RastriginFunction.h"
 #include "core/Population.h"
 #include "utils/AlgorithmBuilder.h"
@@ -21,7 +23,19 @@ int main(int argc, char* argv[]) {
         Population<double> population(POPULATION_SIZE, NUM_GENES);
         population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
 
-        std::cout << "Starting Standard GA (CUDA if enabled in config)..." << std::endl;
+        // Determine actual backend from config at runtime
+        const YAML::Node cfg      = YAML::LoadFile(config_path);
+        const YAML::Node std_node = cfg["algorithm"]["standard"];
+        const bool use_cuda       = std_node && std_node["use_cuda"] ? std_node["use_cuda"].as<bool>(false) : false;
+
+#ifdef GALIB_WITH_CUDA
+        if (use_cuda)
+            std::cout << "Backend: StandardGACUDA (CUDA build, use_cuda=true)" << std::endl;
+        else
+            std::cout << "Backend: StandardGA    (CUDA build, use_cuda=false)" << std::endl;
+#else
+        std::cout << "Backend: StandardGA (CPU-only build, CUDA not compiled in)" << std::endl;
+#endif
         std::cout << "Configuration: " << config_path << std::endl;
         std::cout << "Population size: " << POPULATION_SIZE << std::endl;
 

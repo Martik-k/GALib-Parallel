@@ -53,7 +53,8 @@ namespace galib::benchmark {
                 return sum;
             }
 
-            std::size_t size() const override { return dimensions;}
+            std::size_t size()  const override { return dimensions; }
+            std::string name()  const override { return "Sphere"; }
 
             GeneType getLowerBound(std::size_t) const override { return lower_bound; }
             GeneType getUpperBound(std::size_t) const override { return upper_bound; }

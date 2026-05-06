@@ -6,16 +6,17 @@
 #include "algorithms/Algorithm.h"
 #include "core/Population.h"
 #include "core/FitnessFunction.h"
+#include "algorithms/standard/CUDAEvaluator.h"
 #include "operators/selection/Selection.h"
+#include "operators/selection/TournamentSelection.h"
 #include "operators/mutation/Mutation.h"
+#include "operators/mutation/GaussianMutation.h"
 #include "operators/crossover/Crossover.h"
 
 #include <cstddef>
-#include <memory>
 #include <iostream>
-#include <random>
-#include <utility>
-#include <omp.h>
+#include <memory>
+#include <vector>
 
 namespace galib {
 namespace cuda {
@@ -75,17 +76,6 @@ public:
         use_elitism_m(elitism) {}
 
     /**
-     * @brief Enables per-generation CSV logging to a file.
-     *
-     * When set, every individual's first two gene values (x, y) are written each
-     * generation. Useful for 2-D visualisation. Has no effect if called after run().
-     *
-     * @param filename Path to the output CSV file. Parent directories are created
-     *                 automatically if they do not exist.
-     */
-    void enableLogging(const std::string& filename) override { log_file_m = filename; }
-
-    /**
      * @brief Runs the evolutionary optimisation loop.
      *
      * Evolves @p population in-place for max_gen generations. The population must
@@ -98,73 +88,85 @@ public:
      * @note Population must not be empty.
      */
     void run(Population<GeneType>& population) override {
-        if (population.empty()) { return; }
+        if (population.empty()) return;
 
-        std::size_t population_size = population.size();
-        std::size_t num_genes = population.getNumGenes();
+        const int pop_size = static_cast<int>(population.size());
+        const int dims     = static_cast<int>(population.getNumGenes());
 
-        Population<GeneType> new_population(population_size, num_genes);
+        // Flatten Population<GeneType> → vector<float>
+        std::vector<float> h_genes(static_cast<std::size_t>(pop_size) * dims);
+        for (int i = 0; i < pop_size; ++i) {
+            const auto& g = population[i].getGenotype();
+            for (int j = 0; j < dims; ++j)
+                h_genes[static_cast<std::size_t>(i) * dims + j] = static_cast<float>(g[j]);
+        }
 
-        evaluatePopulation(population);
+        std::vector<float> h_fitness;
 
-        for (std::size_t generation_idx = 0; generation_idx < max_generations_m; ++generation_idx) {
-            this->notifyLoggers(generation_idx, population);
+        // Build params — fitness callback works for ANY FitnessFunction
+        internal::CUDARunParams params;
+        params.pop_size        = pop_size;
+        params.dims            = dims;
+        params.max_generations = static_cast<int>(max_generations_m);
+        params.mutation_rate   = static_cast<float>(mutation_rate_m);
+        params.crossover_rate  = static_cast<float>(crossover_rate_m);
+        params.use_elitism     = use_elitism_m;
+        // Extract tournament size from the actual operator if available
+        if (auto* ts = dynamic_cast<TournamentSelection<GeneType>*>(selection_m.get()))
+            params.tournament_size = static_cast<int>(ts->getTournamentSize());
+        else
+            params.tournament_size = 3;
 
-            std::size_t elitism_offset = 0;
-            if (use_elitism_m) {
-                new_population[0] = population.getBestIndividual();
-                elitism_offset = 1;
+        // Extract sigma from the actual mutation operator if available
+        if (auto* gm = dynamic_cast<GaussianMutation<GeneType>*>(mutation_m.get()))
+            params.sigma = static_cast<float>(gm->getSigma());
+        else
+            params.sigma = 0.1f;
+
+        params.problem_name = fitness_function_m.name();
+
+        // CPU fallback: called for any function without a GPU kernel
+        params.fitness_callback = [this](const float* genes, int d) -> double {
+            std::vector<GeneType> phenotype(static_cast<std::size_t>(d));
+            for (int j = 0; j < d; ++j)
+                phenotype[static_cast<std::size_t>(j)] = static_cast<GeneType>(genes[j]);
+            return fitness_function_m.evaluate(phenotype);
+        };
+
+        // Progress — population lives on device during the run, so we print the
+        // GPU-reported best_fitness directly rather than routing through notifyLoggers
+        // (which would read the stale CPU population).
+        params.progress_callback = [this](int gen, double best_fitness) {
+            if ((gen + 1) % 50 == 0 || gen == 0) {
+                std::cout << "Generation " << (gen + 1)
+                          << " | Best Fitness: " << best_fitness << std::endl;
             }
+        };
 
-            #pragma omp parallel for schedule(static)
-            for (std::size_t i = elitism_offset; i < population_size; i += 2) {
-                thread_local static std::random_device tl_rd;
-                thread_local static std::mt19937_64 tl_gen(tl_rd());
-                thread_local static std::uniform_real_distribution<double> tl_dist(0.0, 1.0);
+        if (!internal::runCUDAEvolution(params, h_genes, h_fitness)) {
+            std::cerr << "[GALib] CUDA evolution failed. Population unchanged.\n";
+            return;
+        }
 
-                const Individual<GeneType>& parent1 = selection_m->select(population);
-                const Individual<GeneType>& parent2 = selection_m->select(population);
-
-                if (tl_dist(tl_gen) < crossover_rate_m) {
-                    auto children = crossover_m->crossover(parent1, parent2);
-                    new_population[i] = std::move(children.first);
-                    if (i + 1 < population_size) {
-                        new_population[i + 1] = std::move(children.second);
-                    }
-                } else {
-                    new_population[i] = parent1;
-                    if (i + 1 < population_size) {
-                        new_population[i + 1] = parent2;
-                    }
-                }
-
-                mutation_m->mutate(new_population[i], mutation_rate_m);
-                if (i + 1 < population_size) {
-                    mutation_m->mutate(new_population[i + 1], mutation_rate_m);
-                }
-            }
-
-            std::swap(population, new_population);
-
-            evaluatePopulation(population);
-
-            this->notifyLoggers(generation_idx, population);
-            if (!this->console_logger_m && ((generation_idx + 1) % 50 == 0 || generation_idx == 0)) {
-                std::cout << "Generation " << (generation_idx + 1)
-                          << " | Best Fitness: " << population.getBestIndividual().getFitness()
-                          << std::endl;
-            }
+        // Write results back into Population<GeneType>
+        for (int i = 0; i < pop_size; ++i) {
+            auto& ind = population[static_cast<std::size_t>(i)];
+            auto& g   = ind.getGenotype();
+            for (int j = 0; j < dims; ++j)
+                g[static_cast<std::size_t>(j)] =
+                    static_cast<GeneType>(h_genes[static_cast<std::size_t>(i) * dims + j]);
+            ind.setFitness(static_cast<double>(h_fitness[static_cast<std::size_t>(i)]));
         }
     }
 
 private:
     FitnessFunction<GeneType>& fitness_function_m;
-    std::unique_ptr<Selection<GeneType>> selection_m;
-    std::unique_ptr<Mutation<GeneType>> mutation_m;
-    std::unique_ptr<Crossover<GeneType>> crossover_m;
+    std::unique_ptr<Selection<GeneType>>  selection_m;
+    std::unique_ptr<Mutation<GeneType>>   mutation_m;
+    std::unique_ptr<Crossover<GeneType>>  crossover_m;
 
-    double mutation_rate_m;
-    double crossover_rate_m;
+    double      mutation_rate_m;
+    double      crossover_rate_m;
     std::size_t max_generations_m;
     bool use_elitism_m;
 

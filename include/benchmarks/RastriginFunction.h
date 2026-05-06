@@ -63,9 +63,8 @@ namespace galib::benchmark {
                 return sum;
             }
 
-            std::size_t size() const override {
-                return dimensions_m;
-            }
+            std::size_t size() const override { return dimensions_m; }
+            std::string name() const override { return "Rastrigin"; }
 
             GeneType getLowerBound(std::size_t) const override {
                 return lower_bound_m;
