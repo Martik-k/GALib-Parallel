@@ -78,6 +78,16 @@ if (GALIB_BUILD_EXAMPLES)
         endif ()
     endif ()
 
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/standard_ga_cuda_example.cpp")
+        add_executable(standard_ga_cuda_example examples/standard_ga_cuda_example.cpp)
+        target_link_libraries(standard_ga_cuda_example PRIVATE ga_lib)
+
+        if (TARGET ga_cuda)
+            target_link_libraries(standard_ga_cuda_example PRIVATE ga_cuda)
+            target_compile_definitions(standard_ga_cuda_example PRIVATE GALIB_WITH_CUDA=1)
+        endif ()
+    endif ()
+
     if (MPI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/island_ga_example.cpp")
         add_executable(island_example examples/island_ga_example.cpp)
         target_link_libraries(island_example PRIVATE ga_lib)

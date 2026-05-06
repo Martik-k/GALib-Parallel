@@ -11,14 +11,11 @@
 #include "operators/crossover/Crossover.h"
 
 #include <cstddef>
-#include <string>
 #include <memory>
 #include <iostream>
 #include <random>
 #include <utility>
-#include <fstream>
 #include <omp.h>
-#include <filesystem>
 
 namespace galib {
 namespace cuda {
@@ -44,23 +41,7 @@ public:
         max_generations_m(max_gen),
         use_elitism_m(elitism) {}
 
-    void enableLogging(const std::string& filename) { log_file_m = filename; }
-
     void run(Population<GeneType>& population) override {
-        std::ofstream log;
-        if (!log_file_m.empty()) {
-            std::filesystem::path p(log_file_m);
-            if (p.has_parent_path()) {
-                std::filesystem::create_directories(p.parent_path());
-            }
-            log.open(log_file_m);
-            if (!log.is_open()) {
-                std::cerr << "Error: Could not open log file " << log_file_m << std::endl;
-            } else {
-                log << "generation,individual_idx,x,y\n";
-            }
-        }
-
         if (population.empty()) { return; }
 
         std::size_t population_size = population.size();
@@ -71,14 +52,7 @@ public:
         evaluatePopulation(population);
 
         for (std::size_t generation_idx = 0; generation_idx < max_generations_m; ++generation_idx) {
-
-            if (log.is_open()) {
-                for (std::size_t i = 0; i < population.size(); ++i) {
-                    log << generation_idx << "," << i << ","
-                        << population[i].getGenotype()[0] << ","
-                        << population[i].getGenotype()[1] << "\n";
-                }
-            }
+            this->notifyLoggers(generation_idx, population);
 
             std::size_t elitism_offset = 0;
             if (use_elitism_m) {
@@ -125,7 +99,6 @@ public:
                           << std::endl;
             }
         }
-        if (log.is_open()) log.close();
     }
 
 private:
@@ -138,8 +111,6 @@ private:
     double crossover_rate_m;
     std::size_t max_generations_m;
     bool use_elitism_m;
-
-    std::string log_file_m = "";
 
     void evaluatePopulation(Population<GeneType>& population) {
         int population_size = static_cast<int>(population.size());

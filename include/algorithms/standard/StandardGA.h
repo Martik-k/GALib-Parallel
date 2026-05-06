@@ -123,7 +123,6 @@ namespace galib {
                               << std::endl;
                 }
             }
-            if (log.is_open()) log.close();
         }
     };
 
