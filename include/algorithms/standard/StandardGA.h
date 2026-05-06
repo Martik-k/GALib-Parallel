@@ -15,6 +15,7 @@
 #include <fstream>
 #include <omp.h>
 #include <filesystem>
+#include <thread>
 
 #include "algorithms/Algorithm.h"
 
@@ -58,6 +59,9 @@ namespace galib {
         ) : fitness_function_m(ff), selection_m(std::move(sel)), mutation_m(std::move(mu)), crossover_m(std::move(cs)),
             mutation_rate_m(m_rate), crossover_rate_m(c_rate), max_generations_m(max_gen),
             use_elitism_m(elitism), threads_m(threads) {
+                if (threads_m == 0) {
+                    threads_m = std::thread::hardware_concurrency() / 2;
+                }
                 omp_set_num_threads(static_cast<int>(threads_m));
             }
 
