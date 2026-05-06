@@ -27,8 +27,8 @@ int main(int argc, char* argv[]) {
 
         const std::string config_path = (argc > 1) ? argv[1] : "configs/config_island.yaml";
 
-        constexpr std::size_t NUM_GENES = 2;
-        constexpr std::size_t POPULATION_SIZE = 30;
+        constexpr std::size_t NUM_GENES = 20;
+        constexpr std::size_t POPULATION_SIZE = 10000;
 
         benchmark::RastriginFunction<double> fitness_fn(NUM_GENES, -5.12, 5.12);
 
@@ -46,8 +46,8 @@ int main(int argc, char* argv[]) {
             std::cout << "Configuration: " << config_path << std::endl;
         }
 
-        island_ga->enableConsoleLogging(10);
-        island_ga->enableFileLogging(std::format("logs/island_ga_rank{}", rank), 1);
+        // island_ga->enableConsoleLogging(10);
+        // island_ga->enableFileLogging(std::format("logs/island_ga_rank{}", rank), 1);
 
         island_ga->run(population);
 
