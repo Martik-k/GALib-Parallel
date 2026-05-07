@@ -14,7 +14,7 @@ int main() {
 
     // 2. Build algorithm instance from YAML configuration
     auto ga = utils::AlgorithmBuilder<double>::build(
-        "configs/minimal_config.yaml", fitness
+        "configs/config_example.yaml", fitness
     );
 
     // 3. Evolve the population

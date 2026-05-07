@@ -9,7 +9,7 @@ using namespace galib;
 
 int main(int argc, char* argv[]) {
     try {
-        std::string config_path = (argc > 1) ? argv[1] : "configs/full_config_example.yaml";
+        std::string config_path = (argc > 1) ? argv[1] : "configs/config_example.yaml";
 
         constexpr std::size_t NUM_GENES = 50;
         benchmark::RastriginFunction<double> fitness_fn(NUM_GENES, -5.12, 5.12);

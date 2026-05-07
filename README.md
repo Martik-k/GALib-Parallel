@@ -209,24 +209,39 @@ endif()
 ### 5. Minimal Example
 
 ```cpp
-#include <string>
-
-#include "benchmarks/SphereFunction.h"
-#include "core/Population.h"
 #include "utils/AlgorithmBuilder.h"
+#include "utils/FunctionalFitness.h"
+#include <iostream>
+
+using namespace galib;
 
 int main() {
-    const std::string config_path = "config.yaml";
+    // 1. Define problem
+    FunctionalFitness<double> fitness(2, -5.0, 5.0,
+        [](const std::vector<double>& p) {
+            return p[0] * p[0] + p[1] * p[1];
+        }
+    );
 
-    galib::benchmark::SphereFunction<double> fitness_fn(10, -5.12, 5.12);
-    galib::Population<double> population(100, 10);
-    population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
+    // 2. Build algorithm instance from YAML configuration
+    auto ga = utils::AlgorithmBuilder<double>::build(
+        "configs/config_example.yaml", fitness
+    );
 
-    auto algorithm = galib::utils::AlgorithmBuilder<double>::build(config_path, fitness_fn);
-    algorithm->run(population);
+    // 3. Evolve the population
+    Population<double> pop(100, 2);
+    pop.initialize(
+        fitness.getLowerBound(),
+        fitness.getUpperBound()
+    );
+    ga->run(pop);
+
+    // 4. Get results
+    std::cout << "Best Fitness: " << pop.getBestIndividual().getFitness() << std::endl;
 
     return 0;
 }
+
 ```
 
 ### 6. Example User Project Layout
@@ -285,34 +300,40 @@ Each run can generate console output and file logs depending on the selected exa
 
 ## Configuration
 
-Configuration files are in YAML format and located in the `configs/` directory. Key sections:
+Configuration files are in YAML format. The library uses a hierarchical structure to define algorithm parameters, genetic operators, and logging options.
 
-- `algorithm.type`: Choose from "standard", "cellular", "island", "differential_evolution"
-- `algorithm.max_generations`: Number of generations
-- `algorithm.mutation_rate`, `algorithm.crossover_rate`: Genetic operator rates
-- `algorithm.pop_size`: Population size for Differential Evolution
-- `algorithm.threads`: Number of worker threads. `0` lets the backend choose automatically.
-- `algorithm.selection`, `algorithm.mutation`, `algorithm.crossover`: Configure genetic operators
-- Algorithm-specific parameters such as `standard.use_cuda`, `cellular.use_local_elitism`, `island.topology`, and `differential_evolution.f_weight`
+| Parameter | Description | Type | Allowed Values |
+| :--- | :--- | :--- | :--- |
+| `algorithm.type` | Evolutionary algorithm variant to execute. | String | `standard`, `cellular`, `island`, `differential_evolution` |
+| `algorithm.max_generations` | Maximum number of generations (iterations) to run. | Integer | Positive integers |
+| `algorithm.mutation_rate` | Probability of mutation for each gene. | Float | `0.0` to `1.0` |
+| `algorithm.crossover_rate` | Probability of crossover (used as `CR` in Differential Evolution). | Float | `0.0` to `1.0` |
+| `algorithm.use_elitism` | If true, the best individuals are preserved for the next generation. | Boolean | `true`, `false` |
+| `algorithm.threads` | Number of worker threads for parallelization (`0` for auto-detection). | Integer | `>= 0` |
+| `algorithm.standard.use_cuda` | Enable CUDA-accelerated evaluation (Standard GA only). | Boolean | `true`, `false` |
+| `algorithm.differential_evolution.f_weight` | Differential weight factor (Scaling Factor) for DE mutation. | Float | `0.0` to `2.0` |
+| `algorithm.cellular.rows` | Number of rows in the grid population (Cellular GA). | Integer | Positive integers |
+| `algorithm.cellular.cols` | Number of columns in the grid population (Cellular GA). | Integer | Positive integers |
+| `algorithm.cellular.use_local_elitism` | If true, elitism is applied within local neighborhoods. | Boolean | `true`, `false` |
+| `algorithm.island.topology` | Communication topology between islands in the archipelago. | String | `fully_connected`, `one_way_ring`, `bidirectional_ring` |
+| `algorithm.island.migration_interval` | Number of generations between migration events. | Integer | Positive integers |
+| `algorithm.island.migration_size` | Number of individuals sent during each migration event. | Integer | Positive integers |
+| `algorithm.island.immigration_quota` | Max fraction of population that can be replaced by immigrants. | Float | `0.0` to `1.0` |
+| `algorithm.island.buffer_capacity` | Capacity of the asynchronous migration receiving buffer. | Integer | Positive integers |
+| `algorithm.island.replacer.type` | Strategy for integrating incoming migrants. | String | `worst` |
+| `algorithm.island.selector.type` | Strategy for selecting individuals for emigration. | String | `elitism` |
+| `algorithm.selection.type` | Selection operator type. | String | `tournament`, `best_neighbor` (Cellular GA) |
+| `algorithm.selection.tournament_size` | Number of individuals in each tournament. | Integer | `>= 1` |
+| `algorithm.mutation.type` | Mutation operator type. | String | `gaussian`, `uniform`, `boundary` |
+| `algorithm.mutation.sigma` | Standard deviation for Gaussian mutation. | Float | Positive floats |
+| `algorithm.crossover.type` | Crossover operator type. | String | `single_point`, `arithmetic`, `uniform` |
+| `output.console.enabled` | Enable logging of progress to the console. | Boolean | `true`, `false` |
+| `output.console.interval` | Generations between console status updates. | Integer | Positive integers |
+| `output.file.enabled` | Enable logging of evolution data to a CSV file. | Boolean | `true`, `false` |
+| `output.file.interval` | Generations between CSV log entries. | Integer | Positive integers |
+| `output.file.path` | Path to the output CSV log file. | String | File path string |
 
-Notes:
-
-- `Standard GA` uses OpenMP threads.
-- `Differential Evolution` uses OpenMP threads.
-- `Cellular GA` uses TBB and interprets a regular `Population` as a 2D grid.
-- For `Cellular GA`, the grid shape is inferred automatically from `population.size()`.
-- `algorithm.pop_size` is used by Differential Evolution configs, while Standard GA and Cellular GA examples create the population in code.
-
-The installed sample config is:
-
-- `share/GALib/configs/full_config_example.yaml`
-
-Inside the repository you can also use:
-
-- `configs/full_config_example.yaml`
-- `configs/other/config_standard.yaml`
-- `configs/other/config_de.yaml`
-- `configs/other/config_island.yaml`
+The sample configuration are available in the repository: `configs/config_example.yaml`
 
 ## Examples
 
