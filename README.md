@@ -1,6 +1,6 @@
 # GALib-Parallel
 
-A header-only C++ library for continuous optimization using various evolutionary algorithms (Standard GA, Cellular GA, Island GA, Differential Evolution), accelerated with OpenMP, MPI, and CUDA. The project includes Python tools for 3D visualization of the optimization process and performance benchmarking.
+A header-only C++ library for continuous optimization using various evolutionary algorithms (Standard GA, Cellular GA, Island GA, Differential Evolution), accelerated with OpenMP, TBB, MPI, and CUDA. The project includes Python tools for 3D visualization of the optimization process and performance benchmarking.
 
 ## Key Features
 
@@ -335,11 +335,4 @@ Configuration files are in YAML format. The library uses a hierarchical structur
 
 The sample configuration are available in the repository: `configs/config_example.yaml`
 
-## Examples
-
-- `standard_ga_example.cpp`: Basic generational GA
-- `cellular_ga_example.cpp`: Grid-based cellular GA
-- `island_ga_example.cpp`: Multi-population island model with MPI
-- `differential_evolution_example.cpp`: DE algorithm
-
-Each example loads a YAML config and runs the optimization, printing the best fitness found.
+View the full documentation at [Documentation Page](https://martik-k.github.io/GALib-Parallel/)
