@@ -3,8 +3,17 @@
 include(CMakeFindDependencyMacro)
 
 find_dependency(OpenMP REQUIRED COMPONENTS CXX)
-find_dependency(MPI REQUIRED COMPONENTS CXX)
 find_dependency(TBB REQUIRED)
 find_dependency(yaml-cpp CONFIG REQUIRED)
+if (@GALIB_PACKAGE_HAS_CUDA@)
+    find_dependency(CUDAToolkit REQUIRED)
+endif ()
 
 include("${CMAKE_CURRENT_LIST_DIR}/GALibTargets.cmake")
+
+if (@GALIB_PACKAGE_HAS_MPI@)
+    find_package(MPI QUIET COMPONENTS CXX)
+    if (MPI_FOUND)
+        include("${CMAKE_CURRENT_LIST_DIR}/GALibIslandTargets.cmake")
+    endif ()
+endif ()

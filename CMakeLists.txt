@@ -12,6 +12,7 @@ option(GALIB_BUILD_EXAMPLES "Build GALib example executables" ON)
 option(GALIB_BUILD_PYTHON_TOOLS "Enable Python visualization helper targets" ON)
 option(GALIB_ENABLE_NATIVE_OPTIMIZATIONS "Enable -march=native style optimizations for consumers" OFF)
 option(GALIB_CUDA_USE_FAST_MATH "Enable CUDA --use_fast_math for ga_cuda target" ON)
+set(GALIB_CUDA_ARCHITECTURES "native" CACHE STRING "CUDA architectures for ga_cuda (for example: native, 75, 86, or 75;86)")
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
@@ -22,6 +23,9 @@ find_package(OpenMP REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(MPI QUIET)
 find_package(TBB REQUIRED)
+
+set(GALIB_PACKAGE_HAS_MPI 0)
+set(GALIB_PACKAGE_HAS_CUDA 0)
 
 add_library(ga_lib INTERFACE)
 add_library(GALib::ga_lib ALIAS ga_lib)
@@ -43,8 +47,14 @@ target_link_libraries(ga_lib INTERFACE
 )
 
 if (MPI_FOUND)
-    target_link_libraries(ga_lib INTERFACE MPI::MPI_CXX)
-    target_compile_definitions(ga_lib INTERFACE GALIB_HAS_MPI=1)
+    add_library(ga_island INTERFACE)
+    add_library(GALib::ga_island ALIAS ga_island)
+    target_link_libraries(ga_island INTERFACE
+            ga_lib
+            MPI::MPI_CXX
+    )
+    target_compile_definitions(ga_island INTERFACE GALIB_HAS_MPI=1)
+    set(GALIB_PACKAGE_HAS_MPI 1)
 endif ()
 
 include(CheckLanguage)
@@ -55,14 +65,22 @@ if (CMAKE_CUDA_COMPILER)
 
     if (CUDAToolkit_FOUND)
         add_library(ga_cuda STATIC src/cuda/StandardGACUDA.cu)
+        add_library(GALib::ga_cuda ALIAS ga_cuda)
         target_include_directories(ga_cuda PUBLIC
-                ${CMAKE_CURRENT_SOURCE_DIR}/include
+                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
         )
-        target_link_libraries(ga_cuda PUBLIC CUDA::cudart)
-        set_target_properties(ga_cuda PROPERTIES CUDA_STANDARD 20 CUDA_STANDARD_REQUIRED ON)
+        target_link_libraries(ga_cuda PUBLIC ga_lib CUDA::cudart)
+        target_compile_definitions(ga_cuda PUBLIC GALIB_WITH_CUDA=1)
+        set_target_properties(ga_cuda PROPERTIES
+                CUDA_STANDARD 20
+                CUDA_STANDARD_REQUIRED ON
+                CUDA_ARCHITECTURES "${GALIB_CUDA_ARCHITECTURES}"
+        )
         if (GALIB_CUDA_USE_FAST_MATH)
             target_compile_options(ga_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)
         endif ()
+        set(GALIB_PACKAGE_HAS_CUDA 1)
         message(STATUS "CUDA toolkit found, ga_cuda backend enabled")
     endif ()
 endif ()
@@ -80,7 +98,7 @@ if (GALIB_BUILD_EXAMPLES)
 
     if (MPI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/island_ga_example.cpp")
         add_executable(island_example examples/island_ga_example.cpp)
-        target_link_libraries(island_example PRIVATE ga_lib)
+        target_link_libraries(island_example PRIVATE ga_island)
     endif ()
 
     if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/cellular_ga_example.cpp")
@@ -137,8 +155,32 @@ install(TARGETS ga_lib
         EXPORT GALibTargets
 )
 
+if (TARGET ga_island)
+    install(TARGETS ga_island
+            EXPORT GALibIslandTargets
+    )
+endif ()
+
+if (TARGET ga_cuda)
+    install(TARGETS ga_cuda
+            EXPORT GALibTargets
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+endif ()
+
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/examples/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/GALib/examples
+)
+
+install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/configs/full_config_example.yaml
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/GALib/configs
 )
 
 install(EXPORT GALibTargets
@@ -146,6 +188,14 @@ install(EXPORT GALibTargets
         NAMESPACE GALib::
         DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/GALib
 )
+
+if (TARGET ga_island)
+    install(EXPORT GALibIslandTargets
+            FILE GALibIslandTargets.cmake
+            NAMESPACE GALib::
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/GALib
+    )
+endif ()
 
 install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/GALibConfig.cmake

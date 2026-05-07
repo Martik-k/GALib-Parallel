@@ -38,77 +38,100 @@ A header-only C++ library for continuous optimization using various evolutionary
 
 ## Build Instructions
 
-1. Clone the repository and navigate to the project root:
+1. Clone the repository and move to the project root:
    ```bash
    git clone <repository-url>
    cd GALib-Parallel
    ```
 
-2. Create a build directory and compile the project:
+2. Configure and build:
    ```bash
-   mkdir build
-   cd build
-   cmake ..
-   make
+   cmake -S . -B build
+   cmake --build build
    ```
 
-   To build specific examples:
+3. Build a specific example target if needed:
    ```bash
-   make ga_example          # Standard GA
-   make island_example      # Island GA (requires MPI)
-   make cellular_example    # Cellular GA
-   make de_example          # Differential Evolution
+   cmake --build build --target ga_example
+   cmake --build build --target cellular_example
+   cmake --build build --target de_example
+   cmake --build build --target island_example
    ```
 
-   Note: Island example requires MPI. If MPI is not found, it won't be built.
+`island_example` is only available when MPI is found. `ga_cuda` and `test_ga_cuda` are only available when CUDA is found.
 
-## Usage
+## Installation
 
-### 1. Running the Algorithms
+### 1. Install Locally
 
-The project provides separate executables for each algorithm type. Run them from the project root, passing the path to a YAML configuration file:
-
-**Standard GA:**
-```bash
-./build/ga_example configs/config_standard.yaml
-```
-
-**Island GA (requires MPI):**
-```bash
-mpirun -np <num_processes> ./build/island_example configs/config_island.yaml
-```
-
-**Cellular GA:**
-```bash
-./build/cellular_example configs/full_config_example.yaml
-```
-
-**Differential Evolution:**
-```bash
-./build/de_example configs/config_de.yaml
-```
-
-Each run generates a CSV log file containing the population history for visualization.
-
-### 2. Using GALib in Your Own Project
-
-If you want to use GALib as a C++ library in another project, first build and install it locally:
+Install into a local folder inside the repository:
 
 ```bash
 cmake -S . -B build
-cmake --build build -j4
+cmake --build build
 cmake --install build --prefix ./install
 ```
 
-This creates a local install tree with:
+This creates:
 
-* `install/include/` - public header files
+* `install/include/` - public headers
 * `install/lib/cmake/GALib/` - CMake package files for `find_package(GALib)`
+* `install/share/GALib/examples/` - installed example sources
+* `install/share/GALib/configs/` - installed sample configs
 
-In your own project, use the following `CMakeLists.txt`:
+### 2. Install System-Wide
+
+If you want `find_package(GALib)` to work without extra path flags, install into a standard system prefix:
+
+```bash
+cmake -S . -B build
+cmake --build build
+sudo cmake --install build --prefix /usr/local
+```
+
+### 3. CUDA Build
+
+To build and install the CUDA-enabled package variant:
+
+```bash
+cmake -S . -B build-cuda
+cmake --build build-cuda
+cmake --install build-cuda --prefix ./install-cuda
+```
+
+You can control the CUDA architecture set with:
+
+```bash
+cmake -S . -B build-cuda -DGALIB_CUDA_ARCHITECTURES=native
+```
+
+Examples of explicit architecture values:
+
+```bash
+cmake -S . -B build-cuda -DGALIB_CUDA_ARCHITECTURES=86
+cmake -S . -B build-cuda -DGALIB_CUDA_ARCHITECTURES="75;86"
+```
+
+## Using GALib In Your Own Project
+
+### 1. Download And Install
+
+Clone the repository and install it either locally or system-wide:
+
+```bash
+git clone <repository-url>
+cd GALib-Parallel
+cmake -S . -B build
+cmake --build build
+cmake --install build --prefix ./install
+```
+
+### 2. Add `find_package`
+
+In your own `CMakeLists.txt`:
 
 ```cmake
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.15)
 project(MyApp LANGUAGES CXX)
 
 find_package(GALib REQUIRED)
@@ -117,33 +140,94 @@ add_executable(my_app main.cpp)
 target_link_libraries(my_app PRIVATE GALib::ga_lib)
 ```
 
-Then configure your project with:
+If GALib was installed into a local prefix such as `./install`, configure your project with:
 
 ```bash
 cmake -S . -B build -DCMAKE_PREFIX_PATH=/absolute/path/to/GALib-Parallel/install
 cmake --build build
 ```
 
-A minimal `main.cpp` can look like this:
+If GALib was installed into `/usr/local`, no extra path is usually needed:
+
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
+### 3. Target Types
+
+GALib exports up to three targets:
+
+* `GALib::ga_lib` - base library, always available
+* `GALib::ga_cuda` - optional CUDA backend, available only when GALib was built with CUDA support
+* `GALib::ga_island` - optional island/MPI backend, available only when GALib was built in an environment with working MPI support
+
+The recommended usage pattern is:
+
+```cmake
+find_package(GALib REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE GALib::ga_lib)
+
+if(TARGET GALib::ga_cuda)
+    target_link_libraries(my_app PRIVATE GALib::ga_cuda)
+    target_compile_definitions(my_app PRIVATE MYAPP_HAS_GALIB_CUDA=1)
+endif()
+
+if(TARGET GALib::ga_island)
+    target_link_libraries(my_app PRIVATE GALib::ga_island)
+endif()
+```
+
+### 4. Minimal Example
 
 ```cpp
-#include <yaml-cpp/yaml.h>
+#include <string>
 
-#include "benchmarks/HimmelblauFunction.h"
-#include "core/GridPopulation.h"
+#include "benchmarks/SphereFunction.h"
+#include "core/Population.h"
 #include "utils/AlgorithmBuilder.h"
 
 int main() {
-    YAML::Node config = YAML::LoadFile("config.yaml");
+    const std::string config_path = "config.yaml";
 
-    galib::benchmark::HimmelblauFitness<double> fitness_fn;
-    galib::GridPopulation<double> population(10, 10, 2);
+    galib::benchmark::SphereFunction<double> fitness_fn(10, -5.12, 5.12);
+    galib::Population<double> population(100, 10);
     population.initialize(fitness_fn.getLowerBound(0), fitness_fn.getUpperBound(0));
 
-    auto ga = galib::utils::AlgorithmBuilder<double>::buildCellularGA(config, fitness_fn);
-    ga->run(population);
+    auto algorithm = galib::utils::AlgorithmBuilder<double>::build(config_path, fitness_fn);
+    algorithm->run(population);
+
+    return 0;
 }
 ```
+
+## Running The Included Examples
+
+Run the example executables from the project root:
+
+**Standard GA**
+```bash
+./build/ga_example configs/other/config_standard.yaml
+```
+
+**Cellular GA**
+```bash
+./build/cellular_example configs/full_config_example.yaml
+```
+
+**Differential Evolution**
+```bash
+./build/de_example configs/other/config_de.yaml
+```
+
+**Island GA**
+```bash
+mpirun -np <num_processes> ./build/island_example configs/other/config_island.yaml
+```
+
+Each run can generate console output and file logs depending on the selected example and YAML configuration.
 
 
 ### 3. 3D Evolution Visualization
@@ -176,7 +260,7 @@ Runs the algorithm across multiple thread counts to test parallel efficiency and
 
 ```bash
 # Run from the project root
-python3 scripts/benchmark_omp.py
+python3 scripts/benchmark_omp_analyze.py
 ```
 
 The resulting plot is saved to `visualizations/images/omp_performance_results.png`.
@@ -188,14 +272,21 @@ Configuration files are in YAML format and located in the `configs/` directory. 
 - `algorithm.type`: Choose from "standard", "cellular", "island", "differential_evolution"
 - `algorithm.max_generations`: Number of generations
 - `algorithm.mutation_rate`, `algorithm.crossover_rate`: Genetic operator rates
-- `algorithm.pop_size`: Population size (for standard and DE)
+- `algorithm.pop_size`: Population size for Differential Evolution
+- `algorithm.threads`: Number of worker threads for algorithms that support thread configuration
 - `algorithm.selection`, `algorithm.mutation`, `algorithm.crossover`: Configure genetic operators
-- Algorithm-specific parameters (e.g., `cellular.rows`, `island.topology`, `differential_evolution.f_weight`)
+- Algorithm-specific parameters such as `cellular.use_local_elitism`, `island.topology`, and `differential_evolution.f_weight`
 
-See `configs/full_config_example.yaml` for all available options and examples.
-- Algorithm-specific sections (e.g., `cellular.rows`, `island.topology`)
+The installed sample config is:
 
-See `configs/full_config_example.yaml` for all available options.
+- `share/GALib/configs/full_config_example.yaml`
+
+Inside the repository you can also use:
+
+- `configs/full_config_example.yaml`
+- `configs/other/config_standard.yaml`
+- `configs/other/config_de.yaml`
+- `configs/other/config_island.yaml`
 
 ## Examples
 
@@ -205,4 +296,3 @@ See `configs/full_config_example.yaml` for all available options.
 - `differential_evolution_example.cpp`: DE algorithm
 
 Each example loads a YAML config and runs the optimization, printing the best fitness found.
-
