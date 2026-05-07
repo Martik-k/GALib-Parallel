@@ -46,7 +46,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \maketitle
 
     \begin{abstract}
-        While Genetic Algorithms (GAs) are powerful optimization tools, their high computational cost limits scalability. This paper details the development of a genetic algorithm library that includes shared-memory, distributed-memory, and accelerator-based parallelization strategies to solve this problem. We describe an implemented multi-threaded Generational GA, a CUDA-accelerated GA, an MPI-based Island Model, a oneTBB-parallelized Cellular GA, and an OpenMP-optimized Differential Evolution algorithm. The performance of this library is evaluated using 3D mathematical surfaces and high-dimensional polygon image approximation tasks.
+        While Genetic Algorithms (GAs) are powerful optimization tools, their high computational cost limits scalability. This paper details the development of a genetic algorithm library that includes shared-memory, distributed-memory, and accelerator-based parallelization strategies to solve this problem. We describe an implemented multi-threaded Generational GA, a CUDA-accelerated GA, an MPI-based Island Model, a oneTBB-parallelized Cellular GA, and an OpenMP-optimized Differential Evolution algorithm. The performance of this library is evaluated using various 3D mathematical surfaces and computationally intensive benchmark functions.
     \end{abstract}
 
     \begin{IEEEkeywords}
@@ -58,7 +58,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
     To solve this, different parallelization methods can be used, depending on the hardware and the specific algorithm. This project aims to develop a fast C++ library that includes four different algorithms: a classic Generational GA, an Island Model GA, a Cellular GA, and Differential Evolution (DE). Using tools like OpenMP, OpenMPI, oneTBB, and CUDA, we adapted these algorithms to the best hardware options (shared memory, distributed memory, and GPUs). 
 
-    This paper presents the final implementation of the library, covering a diverse set of parallelized evolutionary models. It details the multi-threaded Generational GA, the CUDA-accelerated backend, the MPI-based Island Model, the oneTBB-parallelized Cellular GA, and the OpenMP-optimized Differential Evolution. The source code is publicly available at \faGithub\ \href{https://github.com/Martik-k/GALib-Parallel}{our GitHub}.
+    This paper presents the final implementation of the library, covering a diverse set of parallelized evolutionary models. It details the multi-threaded Generational GA, the CUDA-accelerated backend, the MPI-based Island Model, the oneTBB-parallelized Cellular GA, and the OpenMP-optimized Differential Evolution. The source code is publicly available at \faGithub\ \href{https://github.com/Martik-k/GALib-Parallel}{our GitHub}, and the full library documentation can be found \faBook\ \href{https://martik-k.github.io/GALib-Parallel/}{here}.
 
     \section{Background and Preliminaries}
 
@@ -236,7 +236,7 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \section{Library Usage}
     
     \subsection{Installation and Compilation}
-    GALib-Parallel is distributed as a CMake-based C++20 library whose standard workflow follows the configure--build--install model. During configuration, CMake automatically detects optional dependencies such as MPI and the CUDA Toolkit and enables the corresponding exported targets only when the required environment is available; consequently, the base package is always provided through \texttt{GALib::ga\_lib}, while \texttt{GALib::ga\_cuda} and \texttt{GALib::ga\_island} are exposed only in CUDA- and MPI-enabled builds, respectively. The installation exports public headers, package configuration files, sample configurations, and example sources, allowing downstream users to integrate the library through \texttt{find\_package(GALib)}. The practical build, installation, and linking steps are described in the library documentation and main project page.
+    GALib-Parallel is distributed as a CMake-based C++20 library whose standard workflow follows the configure--build--install model. During configuration, CMake automatically detects optional dependencies such as MPI and the CUDA Toolkit and enables the corresponding exported targets only when the required environment is available; consequently, the base package is always provided through \texttt{GALib::ga\_lib}, while \texttt{GALib::ga\_cuda} and \texttt{GALib::ga\_island} are exposed only in CUDA- and MPI-enabled builds, respectively. The installation exports public headers, package configuration files, sample configurations, and example sources, allowing downstream users to integrate the library through \texttt{find\_package(GALib)}. The practical build, installation, and linking steps are described in the \href{https://martik-k.github.io/GALib-Parallel/}{library documentation} and main project page.
 
     \subsection{User API and Programming Model}
     The library provides a high-level, data-driven API designed to minimize boilerplate. The programming model follows three primary stages: problem definition, engine instantiation, and evolution.
