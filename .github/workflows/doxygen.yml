@@ -24,6 +24,10 @@ jobs:
       - name: Run Doxygen
         run: doxygen Doxyfile
 
+      # This is the new step added to fix CSS/Search issues!
+      - name: Add .nojekyll
+        run: touch docs/html/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -13,7 +13,7 @@ OUTPUT_DIRECTORY       = docs
 #---------------------------------------------------------------------------
 # Input
 #---------------------------------------------------------------------------
-INPUT                  = README.md include/ examples/ configs/full_config_example.yaml doc/config.md
+INPUT                  = README.md include/ examples/ configs/config_example.yaml doc/config.md
 USE_MDFILE_AS_MAINPAGE = README.md
 FILE_PATTERNS          = *.h *.hpp *.yaml
 RECURSIVE              = YES
