@@ -176,13 +176,22 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     \section{Benchmarks}
 
     \subsection{Comparison of CUDA and Parallel Standard GA}
-    We compared the CUDA-accelerated backend against the multi-threaded OpenMP implementation on an NVIDIA GeForce RTX 4050 GPU using the HeavyTrig benchmark. As shown in Figure~\ref{fig:cuda_ga_speedup}, the GPU provides a substantial advantage for compute-intensive workloads, achieving speedups between 3.70$\times$ and 12.04$\times$ depending on population size and complexity.
+    We compared the CUDA backend against the multi-threaded OpenMP implementation across several benchmark functions. Figure~\ref{fig:cuda_speedup_pop} shows that speedup grows with population size: fixed overheads (kernel launch, memory transfers, setup) are amortized, GPU occupancy improves, and arithmetic intensity increases. For small populations, the overhead dominates and GPU benefits are limited.
+
+    Figure~\ref{fig:cuda_best_fitness} compares final best fitness (lower is better). Differences across CPU and CUDA runs reflect stochasticity (random seeds, selection noise) and parallel execution order. CUDA primarily reduces time-to-solution; it does not guarantee better solution quality. It helps when larger populations can be evaluated faster, enabling more exploration in the same wall time. It does not help when the GPU path still relies on host-side evaluation or when population sizes are too small to saturate the device.
 
     \begin{figure}[H]
         \centering
-        \includegraphics[width=\columnwidth]{media/cuda_ga_speedup.png}
-        \caption{CUDA speedup for Generational GA on HeavyTrig benchmark.}
-        \label{fig:cuda_ga_speedup}
+        \includegraphics[width=\columnwidth]{media/speedup_vs_popsize_cuda.png}
+        \caption{CUDA speedup vs population size across benchmark functions.}
+        \label{fig:cuda_speedup_pop}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\columnwidth]{media/fitness_quality_cuda.png}
+        \caption{Final best fitness comparison for CPU vs CUDA (lower is better).}
+        \label{fig:cuda_best_fitness}
     \end{figure}
 
     \subsection{Hybrid Island GA Cluster Scaling}
