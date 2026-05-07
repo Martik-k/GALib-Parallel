@@ -173,7 +173,6 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
     In the implemented Cellular Genetic Algorithm, the population is treated as a two-dimensional toroidal grid whose shape is inferred automatically from the total population size by selecting a factorization close to a square. Each cell stores one individual, and reproduction is restricted to local interaction: one parent is the current individual, while the second parent is selected from the Von Neumann neighborhood consisting of the four adjacent cells (up, down, left, and right) with wrap-around boundary conditions.
 
     Parent selection is performed by choosing the fittest neighboring individual. The selected pair then undergoes crossover with probability $p_c$ and mutation with probability $p_m$, producing two offspring that are evaluated immediately. If local elitism is enabled, the algorithm preserves the best individual among the current parent and the two offspring; otherwise, only the better offspring survives. The resulting individuals are written into a temporary population, and the old population is replaced synchronously after all cells have been processed. This local interaction pattern helps preserve spatial diversity and slows premature convergence compared to fully panmictic population models. Both the initial population evaluation and the cell-wise update phase are parallelized with oneTBB through \texttt{tbb::parallel\_for}. This parallelization is safe because each task reads individuals only from the previous generation state and writes its result into an independent slot of the temporary population, thereby avoiding write conflicts during the generation update.
-
     \section{Benchmarks}
 
     \subsection{Comparison of CUDA and Parallel Standard GA}
@@ -210,6 +209,30 @@ T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
         \label{fig:cluster_bench}
     \end{figure}
 
+    \subsection{Benchmark Suite Performance}
+    The library includes a comprehensive benchmark suite for evaluating algorithm performance across different parallelization strategies. Time benchmarks measure execution speedup with increasing thread counts on the Rastrigin function, quality benchmarks assess convergence to optimal solutions, and convergence plots visualize fitness improvement over generations. Benchmarks were conducted on an HP 250 G8 Notebook PC with Intel Core i5-1135G7 (4 cores, 8 threads).
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\columnwidth]{media/cellular_time_benchmark.jpg}
+        \caption{Performance benchmarks for the Cellular Genetic Algorithm on the Rastrigin function, showing execution time reduction and speedup as thread count increases from 1 to 4.}
+        \label{fig:cellular_time}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\columnwidth]{media/de_time_benchmark.jpg}
+        \caption{Performance benchmarks for Differential Evolution on the Rastrigin function, showing execution time reduction and speedup as thread count increases from 1 to 4.}
+        \label{fig:de_time}
+    \end{figure}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=\columnwidth]{media/standard_time_benchmark.jpg}
+        \caption{Performance benchmarks for the Standard Genetic Algorithm on the Rastrigin function, showing execution time reduction and speedup as thread count increases from 1 to 4.}
+        \label{fig:standard_time}
+    \end{figure}
+    
     \section{Library Usage}
     
     \subsection{Installation and Compilation}
