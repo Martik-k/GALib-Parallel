@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(GALib-Parallel VERSION 1.0 LANGUAGES CXX)
 
@@ -169,6 +169,7 @@ install(FILES
 )
 
 enable_testing()
+add_subdirectory(tests)
 
 find_package(Doxygen QUIET)
 if (DOXYGEN_FOUND)
