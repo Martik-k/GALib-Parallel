@@ -3,10 +3,10 @@
 
 algorithm:
   # Common Parameters
-  type: "differential_evolution"   # Options: "standard", "cellular", "island", "differential_evolution"
-  max_generations: 500
+  type: "standard"   # Options: "standard", "cellular", "island", "differential_evolution"
+  max_generations: 1000
   mutation_rate: 0.1
-  crossover_rate: 0.9        # Used as CR_rate in Differential Evolution
+  crossover_rate: 0.2        # Used as CR_rate in Differential Evolution
   use_elitism: true
   threads: 4                 # Number of threads for the parallelization
 
