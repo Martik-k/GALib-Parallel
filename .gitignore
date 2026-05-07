@@ -6,12 +6,22 @@ ga_example
 /build/
 /build-*/
 /build-cuda/
+/install/
+/install-*/
 /CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
 CTestTestfile.cmake
 compile_commands.json
+
+# Consumer/integration test build directories
+/consumer-test/build*/
+/consumer-fetch-test/build*/
+/consumer-test/
+/consumer-fetch-test/
+
+docs/
 
 # === Logs ===
 log
@@ -46,9 +56,8 @@ myvenv/
 Thumbs.db
 
 # === Media & Documentation ===
-*.mp4
-*.gif
 visualizations/
+output/
 articles/
 
 # === LaTeX ===

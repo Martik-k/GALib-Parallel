@@ -12,6 +12,11 @@
 namespace galib::utils {
     /**
      * @brief Logger for writing optimization progress to a CSV file.
+     * 
+     * Records the fitness and genotype of every individual in the population
+     * at defined intervals, creating a detailed audit trail of the evolution.
+     * 
+     * @tparam GeneType The gene type of the population.
      */
     template <typename GeneType>
     class FileLogger {
@@ -21,9 +26,19 @@ namespace galib::utils {
         bool header_written_m = false;
 
     public:
+        /**
+         * @brief Constructs a file logger.
+         * @param path     Output CSV file path.
+         * @param interval Generation frequency for recording data.
+         */
         FileLogger(const std::string& path, const std::size_t interval)
             : path_m(path), interval_m(interval) {}
 
+        /**
+         * @brief Appends current population data to the CSV file.
+         * @param gen Current generation index.
+         * @param pop Current population state.
+         */
         void log(std::size_t gen, const Population<GeneType>& pop) {
             if (interval_m == 0 || (gen % interval_m != 0 && gen != 0)) {
                 return;
@@ -40,7 +55,11 @@ namespace galib::utils {
             if (!header_written_m) {
                 file.open(path_m, std::ios::out);
                 if (file.is_open()) {
-                    file << "generation,individual_idx,fitness,genotype\n";
+                    file << "generation,individual_idx,fitness";
+                    for (std::size_t j = 0; j < pop.getNumGenes(); ++j) {
+                        file << ",gene_" << j;
+                    }
+                    file << ",genotype\n";
                     header_written_m = true;
                 }
             } else {
@@ -52,8 +71,14 @@ namespace galib::utils {
             }
 
             for (std::size_t i = 0; i < pop.size(); ++i) {
-                file << gen << "," << i << "," << pop[i].getFitness() << ",";
                 const auto& genotype = pop[i].getGenotype();
+                file << gen << "," << i << "," << pop[i].getFitness();
+                
+                for (const auto& gene : genotype) {
+                    file << "," << gene;
+                }
+                file << ",";
+
                 for (std::size_t j = 0; j < genotype.size(); ++j) {
                     file << genotype[j] << (j == genotype.size() - 1 ? "" : ";");
                 }

@@ -115,9 +115,14 @@ namespace galib {
 
 				std::swap(population, new_population);
                 evaluatePopulation(population);
-            }
 
-            this->notifyLoggers(max_generations_m, population);
+                this->notifyLoggers(generation_idx, population);
+                if (!this->console_logger_m && ((generation_idx + 1) % 50 == 0 || generation_idx == 0)) {
+                    std::cout << "Generation " << (generation_idx + 1)
+                              << " | Best Fitness: " << population.getBestIndividual().getFitness()
+                              << std::endl;
+                }
+            }
         }
     };
 

@@ -13,8 +13,20 @@
 #include <string>
 
 namespace galib::utils {
+    /**
+     * @brief A factory for instantiating standard benchmark functions.
+     * 
+     * Maps string names (e.g., "Sphere", "Rastrigin") to concrete 
+     * FitnessFunction implementations.
+     */
     class FitnessFactory {
     public:
+        /**
+         * @brief Creates a fitness function based on the provided configuration.
+         * @param problem Configuration containing function name and bounds.
+         * @return unique_ptr to the constructed FitnessFunction.
+         * @throws std::invalid_argument if the function name is unrecognized.
+         */
         static std::unique_ptr<FitnessFunction<double>> create(const ProblemConfig& problem) {
             const std::string& name = problem.name;
             const std::size_t dim = problem.dimensions;

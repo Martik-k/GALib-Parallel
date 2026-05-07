@@ -1,0 +1,17 @@
+algorithm:
+  type: "standard"
+  max_generations: 100
+  mutation_rate: 0.1
+  crossover_rate: 0.8
+  threads: 0
+
+  selection:
+    type: "tournament"
+    tournament_size: 3
+  
+  mutation:
+    type: "gaussian"
+    sigma: 0.1
+    
+  crossover:
+    type: "single_point"

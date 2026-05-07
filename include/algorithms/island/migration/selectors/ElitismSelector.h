@@ -12,9 +12,24 @@
 
 namespace galib {
 
+    /**
+     * @brief Selection strategy that chooses the best individuals for migration.
+     * 
+     * Picks the top @p count fittest individuals from the local population
+     * to be shared with neighbors.
+     * 
+     * @tparam GeneType The gene type of the individuals.
+     */
     template <typename GeneType>
     class ElitismSelector : public DemeSelector<GeneType> {
     public:
+        /**
+         * @brief Selects the elite members of the population.
+         * 
+         * @param population Source population.
+         * @param count      Number of elites to select.
+         * @return Vector of selected elite individuals.
+         */
         std::vector<Individual<GeneType>> selectDeme(
             const Population<GeneType>& population,
             std::size_t count
