@@ -6,7 +6,7 @@ A header-only C++ library for continuous optimization using various evolutionary
 
 * **Header-only Architecture:** Easy integration into existing C++ projects without complex linking.
 * **Multiple Algorithms:** Support for Standard GA, Cellular GA, Island GA (with MPI), and Differential Evolution.
-* **Parallelization:** OpenMP for intra-population parallelism, MPI for inter-population (island model), CUDA for GPU acceleration.
+* **Parallelization:** OpenMP for Standard GA and Differential Evolution, TBB for Cellular GA, MPI for the island model, CUDA for GPU-enabled builds.
 * **Data-Driven Configuration:** YAML-based setup for algorithm parameters, functions, and bounds.
 * **Continuous Search Space:** Implements real-coded algorithms with double precision floating-point representation.
 * **Benchmark Functions:** Built-in support for Sphere, Rastrigin, Himmelblau, and De Jong F5 functions.
@@ -91,7 +91,7 @@ sudo cmake --install build --prefix /usr/local
 
 ### 3. CUDA Build
 
-To build and install the CUDA-enabled package variant:
+To build and install the CUDA-enabled package variant of GALib:
 
 ```bash
 cmake -S . -B build-cuda
@@ -114,7 +114,17 @@ cmake -S . -B build-cuda -DGALIB_CUDA_ARCHITECTURES="75;86"
 
 ## Using GALib In Your Own Project
 
-### 1. Download And Install
+### 1. Quick User Flow
+
+To use GALib in another CMake project, the workflow is:
+
+1. Download the library source code.
+2. Build and install the library.
+3. In your own project, call `find_package(GALib REQUIRED)`.
+4. Link against `GALib::ga_lib`.
+5. Optionally link `GALib::ga_cuda` or `GALib::ga_island` if those targets are available.
+
+### 2. Download And Install
 
 Clone the repository and install it either locally or system-wide:
 
@@ -126,7 +136,23 @@ cmake --build build
 cmake --install build --prefix ./install
 ```
 
-### 2. Add `find_package`
+If you want a system-wide install instead:
+
+```bash
+cmake -S . -B build
+cmake --build build
+sudo cmake --install build --prefix /usr/local
+```
+
+If you want the CUDA-enabled package variant in `/usr/local`:
+
+```bash
+cmake -S . -B build-cuda
+cmake --build build-cuda
+sudo cmake --install build-cuda --prefix /usr/local
+```
+
+### 3. Add `find_package`
 
 In your own `CMakeLists.txt`:
 
@@ -154,9 +180,9 @@ cmake -S . -B build
 cmake --build build
 ```
 
-### 3. Target Types
+### 4. Target Types
 
-GALib exports up to three targets:
+GALib exports up to three targets, depending on how it was built:
 
 * `GALib::ga_lib` - base library, always available
 * `GALib::ga_cuda` - optional CUDA backend, available only when GALib was built with CUDA support
@@ -180,7 +206,7 @@ if(TARGET GALib::ga_island)
 endif()
 ```
 
-### 4. Minimal Example
+### 5. Minimal Example
 
 ```cpp
 #include <string>
@@ -201,6 +227,33 @@ int main() {
 
     return 0;
 }
+```
+
+### 6. Example User Project Layout
+
+Your own project can look like this:
+
+```text
+MyApp/
+  CMakeLists.txt
+  main.cpp
+  config.yaml
+```
+
+Then build it like this:
+
+```bash
+cmake -S . -B build
+cmake --build build
+./build/my_app
+```
+
+If GALib was installed into a local prefix instead of `/usr/local`, configure with:
+
+```bash
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/absolute/path/to/GALib-Parallel/install
+cmake --build build
+./build/my_app
 ```
 
 ## Running The Included Examples
@@ -230,41 +283,6 @@ mpirun -np <num_processes> ./build/island_example configs/other/config_island.ya
 Each run can generate console output and file logs depending on the selected example and YAML configuration.
 
 
-### 3. 3D Evolution Visualization
-Generates MP4 and GIF animations showing the population converging toward the global minimum, along with a static PNG plot.
-
-For Standard GA:
-```bash
-python3 scripts/visualization_standard.py configs/config_standard.yaml
-```
-
-For Differential Evolution:
-```bash
-python3 scripts/visualization_de.py configs/config_de.yaml
-```
-
-For Cellular GA:
-```bash
-python3 scripts/visualization_cellular.py configs/full_config_example.yaml
-```
-
-For Island GA:
-```bash
-python3 scripts/visualization_island.py configs/config_island.yaml
-```
-
-Files are automatically saved to `visualizations/animations/` and `visualizations/images/`.
-
-### 4. OpenMP Performance Benchmarking
-Runs the algorithm across multiple thread counts to test parallel efficiency and generates execution time and speedup graphs.
-
-```bash
-# Run from the project root
-python3 scripts/benchmark_omp_analyze.py
-```
-
-The resulting plot is saved to `visualizations/images/omp_performance_results.png`.
-
 ## Configuration
 
 Configuration files are in YAML format and located in the `configs/` directory. Key sections:
@@ -273,9 +291,17 @@ Configuration files are in YAML format and located in the `configs/` directory. 
 - `algorithm.max_generations`: Number of generations
 - `algorithm.mutation_rate`, `algorithm.crossover_rate`: Genetic operator rates
 - `algorithm.pop_size`: Population size for Differential Evolution
-- `algorithm.threads`: Number of worker threads for algorithms that support thread configuration
+- `algorithm.threads`: Number of worker threads. `0` lets the backend choose automatically.
 - `algorithm.selection`, `algorithm.mutation`, `algorithm.crossover`: Configure genetic operators
-- Algorithm-specific parameters such as `cellular.use_local_elitism`, `island.topology`, and `differential_evolution.f_weight`
+- Algorithm-specific parameters such as `standard.use_cuda`, `cellular.use_local_elitism`, `island.topology`, and `differential_evolution.f_weight`
+
+Notes:
+
+- `Standard GA` uses OpenMP threads.
+- `Differential Evolution` uses OpenMP threads.
+- `Cellular GA` uses TBB and interprets a regular `Population` as a 2D grid.
+- For `Cellular GA`, the grid shape is inferred automatically from `population.size()`.
+- `algorithm.pop_size` is used by Differential Evolution configs, while Standard GA and Cellular GA examples create the population in code.
 
 The installed sample config is:
 

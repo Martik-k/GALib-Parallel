@@ -26,6 +26,26 @@
 
 namespace galib {
 
+/**
+ * @brief Cellular genetic algorithm that evolves individuals on a local 2D neighbourhood.
+ *
+ * The algorithm accepts a regular @ref Population and interprets it as a 2D toroidal
+ * grid. Grid dimensions are inferred automatically from the population size by choosing
+ * a factorisation close to a square. Each cell evolves using only its local neighbourhood,
+ * which preserves spatial diversity better than fully mixing the whole population.
+ *
+ * The evolutionary loop is:
+ *  1. Infer grid dimensions from @p population.size().
+ *  2. Evaluate the initial population.
+ *  3. For each generation, evolve every cell independently from its local neighbourhood.
+ *  4. Replace the old population with the newly produced one.
+ *
+ * @tparam GeneType Numeric type of each gene (default: double).
+ *
+ * @note Fitness is minimised: lower values are considered better.
+ * @note The grid uses wrap-around boundaries, so edge cells still have neighbours.
+ * @note When @p threads is 0, TBB chooses the level of parallelism automatically.
+ */
 template <typename GeneType = double>
 class CellularGA : public Algorithm<GeneType> {
 private:
@@ -118,6 +138,21 @@ private:
     }
 
 public:
+    /**
+     * @brief Constructs the cellular genetic algorithm with all required operators.
+     *
+     * @param ff         Fitness function used to evaluate individuals. Must outlive this object.
+     * @param local_sel  Local neighbourhood selection strategy. Ownership is transferred.
+     * @param mu         Mutation operator applied to produced offspring. Ownership is transferred.
+     * @param cs         Crossover operator used to combine the current cell with a neighbour.
+     *                   Ownership is transferred.
+     * @param m_rate     Mutation probability in the range [0, 1].
+     * @param c_rate     Crossover probability in the range [0, 1].
+     * @param max_gen    Number of generations to run.
+     * @param threads    Maximum number of TBB worker threads. If 0, TBB decides automatically.
+     * @param elitism    If true, the current individual competes with both children and the best
+     *                   one survives in the next generation.
+     */
     CellularGA(
         FitnessFunction<GeneType>& ff,
         std::unique_ptr<LocalSelection<GeneType>> local_sel,
@@ -141,6 +176,17 @@ public:
           cols_m(0),
           use_local_elitism_m(elitism) {}
 
+    /**
+     * @brief Runs the cellular evolutionary optimisation loop.
+     *
+     * The input population is interpreted as a 2D grid whose shape is inferred from
+     * @p population.size(). The population is evolved in place and overwritten with
+     * the final generation.
+     *
+     * @param population In/out population to evolve.
+     * @note The population must be initialised before calling this method.
+     * @note If the population is empty, the method returns immediately.
+     */
     void run(Population<GeneType>& population) override {
         if (population.empty()) {
             return;

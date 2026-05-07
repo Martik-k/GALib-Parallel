@@ -8,9 +8,28 @@
 
 namespace galib {
 
+/**
+ * @brief Selects the fittest direct neighbour of a cell in a cellular grid.
+ *
+ * The neighbourhood is the Von Neumann neighbourhood: up, down, left, and right.
+ * Grid boundaries wrap around, so border cells still have four neighbours.
+ *
+ * @tparam GeneType Numeric type of each gene.
+ */
 template <typename GeneType>
 class BestNeighborSelection : public LocalSelection<GeneType> {
 public:
+    /**
+     * @brief Returns the best direct neighbour of the specified cell.
+     *
+     * @param population Population interpreted as a 2D grid in row-major order.
+     * @param row        Row of the current cell.
+     * @param col        Column of the current cell.
+     * @param rows       Total number of grid rows. Must be non-zero.
+     * @param cols       Total number of grid columns. Must be non-zero.
+     * @return Const reference to the neighbouring individual with the lowest fitness.
+     * @throws std::invalid_argument if @p rows or @p cols is zero.
+     */
     const Individual<GeneType>& select(
         const Population<GeneType>& population,
         std::size_t row,
