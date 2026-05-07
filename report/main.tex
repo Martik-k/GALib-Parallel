@@ -292,6 +292,7 @@ std::cout
     \end{figure}
 
     \section{Conclusion}
+    This paper presented GALib-Parallel, a comprehensive C++20 genetic algorithm library that addresses computational scalability challenges through multi-tiered parallelization. The library integrates OpenMP, MPI, CUDA, and oneTBB to deliver multiple evolutionary models---Standard GA, Island Model, Cellular GA, and Differential Evolution---within a unified, extensible framework. Empirical validation demonstrates substantial performance gains, with CUDA acceleration achieving speedups of 3.70$\times$ to 12.04$\times$ on compute-intensive workloads and the hybrid Island Model delivering 2.32$\times$ speedup across an 18-core heterogeneous cluster. By automating parallel implementation complexity through a template-driven design and configuration-driven API, GALib-Parallel enables practitioners to leverage modern computing resources for previously intractable optimization problems. The library's accessibility and extensibility position it as a robust, production-ready platform for evolutionary computation at scale.
 
     \section*{Acknowledgment}
 
