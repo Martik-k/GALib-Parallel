@@ -58,6 +58,7 @@ namespace galib::utils {
             static constexpr double CROSSOVER_RATE = 0.8;
             static constexpr std::size_t MAX_GENERATIONS = 100;
             static constexpr bool USE_ELITISM = true;
+            static constexpr std::size_t THREADS = 1;
 
             struct Standard {
                 static constexpr bool USE_CUDA = false;
@@ -171,7 +172,7 @@ namespace galib::utils {
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
             params.use_elitism = node["use_elitism"].as<bool>(Defaults::USE_ELITISM);
-            params.num_threads = node["threads"].as<std::size_t>(0);
+            params.threads = node["threads"].as<std::size_t>(Defaults::THREADS);
 
             bool use_cuda = Defaults::Standard::USE_CUDA;
             if (node["standard"]) {
@@ -210,7 +211,8 @@ namespace galib::utils {
                 params.mutation_rate,
                 params.crossover_rate,
                 params.max_generations,
-                params.use_elitism
+                params.use_elitism,
+                params.threads
             );
         }
 
@@ -229,22 +231,15 @@ namespace galib::utils {
             params.mutation_rate = node["mutation_rate"].as<double>(Defaults::MUTATION_RATE);
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::CROSSOVER_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
-            params.num_threads = node["threads"].as<std::size_t>(0);
-
+            params.threads = node["threads"].as<std::size_t>(Defaults::THREADS);
+            
             if (node["cellular"]) {
-                params.rows = node["cellular"]["rows"].as<std::size_t>(Defaults::Cellular::ROWS);
-                params.cols = node["cellular"]["cols"].as<std::size_t>(Defaults::Cellular::COLS);
                 params.use_local_elitism = node["cellular"]["use_local_elitism"].as<bool>(Defaults::Cellular::USE_LOCAL_ELITISM);
             }
 
-            // NOTE: CellularGA currently does not support the Algorithm<GeneType> interface
-            // because it still uses GridPopulation instead of Population.
-            // This will be fixed in the future.
-
-            /*
-            auto selection = OperatorBuilder<GeneType>::buildLocalSelection(node["selection"]);
-            auto mutation = OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
-            auto crossover = OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
+            auto selection = internal::OperatorBuilder<GeneType>::buildLocalSelection(node["selection"]);
+            auto mutation = internal::OperatorBuilder<GeneType>::buildMutation(node["mutation"], ff.getLowerBound(), ff.getUpperBound());
+            auto crossover = internal::OperatorBuilder<GeneType>::buildCrossover(node["crossover"]);
 
             return std::make_unique<CellularGA<GeneType>>(
                 ff,
@@ -254,13 +249,9 @@ namespace galib::utils {
                 params.mutation_rate,
                 params.crossover_rate,
                 params.max_generations,
-                params.rows,
-                params.cols,
+                params.threads,
                 params.use_local_elitism
             );
-            */
-
-            throw std::runtime_error("CellularGA is not yet implemented to support the common Algorithm interface.");
         }
 
         /**
@@ -277,7 +268,7 @@ namespace galib::utils {
             DEParams params;
             params.crossover_rate = node["crossover_rate"].as<double>(Defaults::DE::CR_RATE);
             params.max_generations = node["max_generations"].as<std::size_t>(Defaults::MAX_GENERATIONS);
-            params.num_threads = node["threads"].as<std::size_t>(0);
+            params.threads = node["threads"].as<std::size_t>(Defaults::THREADS);
 
             if (node["differential_evolution"]) {
                 params.f_weight = node["differential_evolution"]["f_weight"].as<double>(Defaults::DE::F_WEIGHT);
@@ -287,7 +278,8 @@ namespace galib::utils {
                 ff,
                 params.f_weight,
                 params.crossover_rate,
-                params.max_generations
+                params.max_generations,
+                params.threads
             );
         }
 

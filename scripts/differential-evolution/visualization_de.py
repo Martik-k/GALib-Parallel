@@ -85,7 +85,7 @@ def update(gen):
         return scatter3d, scatter2d
 
     curr = grouped_data.get_group(gen)
-    xs, ys = curr['x'].values, curr['y'].values
+    xs, ys = curr['gene_0'].values, curr['gene_1'].values
     zs = target_func(xs, ys)
 
     scatter3d._offsets3d = (xs, ys, zs)

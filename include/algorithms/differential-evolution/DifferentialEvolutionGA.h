@@ -12,6 +12,7 @@
 #include <omp.h>
 #include <filesystem>
 #include <algorithm> // для std::clamp
+#include <thread>
 
 #include "algorithms/Algorithm.h"
 
@@ -25,7 +26,7 @@ namespace galib {
         double F_m; // differential weight [0, 2]
         double CR_m; // crossover rate (probability) [0, 1]
         std::size_t max_generations_m;
-        std::string log_file_m = "";
+        std::size_t threads_m;
 
         void evaluatePopulation(Population<GeneType>& population) {
             int pop_size = static_cast<int>(population.size());
@@ -41,20 +42,16 @@ namespace galib {
             FitnessFunction<GeneType>& ff,
             double f_weight,
             double cr_rate,
-            std::size_t max_gen
-        ) : fitness_function_m(ff), F_m(f_weight), CR_m(cr_rate), max_generations_m(max_gen) {}
-
-        void enableLogging(const std::string& filename) { log_file_m = filename; }
+            std::size_t max_gen,
+            std::size_t threads = 1
+        ) : fitness_function_m(ff), F_m(f_weight), CR_m(cr_rate), max_generations_m(max_gen), threads_m(threads) {
+            if (threads_m == 0) {
+                threads_m = std::thread::hardware_concurrency() / 2;
+            }
+            omp_set_num_threads(static_cast<int>(threads_m));
+        }
 
         void run(Population<GeneType>& population) override {
-            std::ofstream log;
-            if (!log_file_m.empty()) {
-                std::filesystem::path p(log_file_m);
-                if (p.has_parent_path()) std::filesystem::create_directories(p.parent_path());
-                log.open(log_file_m);
-                if (log.is_open()) log << "generation,individual_idx,x,y\n";
-            }
-
             if (population.empty()) return;
 
             std::size_t pop_size = population.size();
@@ -67,14 +64,7 @@ namespace galib {
             unsigned int master_seed = master_rd();
 
             for (std::size_t generation_idx = 0; generation_idx < max_generations_m; ++generation_idx) {
-
-                if (log.is_open()) {
-                    for (std::size_t i = 0; i < pop_size; ++i) {
-                        log << generation_idx << "," << i << ","
-                            << population[i].getGenotype()[0] << ","
-                            << population[i].getGenotype()[1] << "\n";
-                    }
-                }
+                this->notifyLoggers(generation_idx, population);
 
                 #pragma omp parallel
                 {
@@ -135,13 +125,9 @@ namespace galib {
                 }
 
                 std::swap(population, new_population);
-
-                if ((generation_idx + 1) % 50 == 0 || generation_idx == 0) {
-                    std::cout << "Generation " << (generation_idx + 1)
-                              << " | Best Fitness: " << population.getBestIndividual().getFitness() << std::endl;
-                }
             }
-            if (log.is_open()) log.close();
+
+            this->notifyLoggers(max_generations_m, population);
         }
     };
 }

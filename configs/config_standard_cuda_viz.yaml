@@ -1,0 +1,35 @@
+algorithm:
+  type: "standard"
+  pop_size: 80
+  num_genes: 2
+  max_generations: 100
+  mutation_rate: 0.05
+  crossover_rate: 0.8
+  use_elitism: true
+
+  standard:
+    use_cuda: false   # CPU path used so FileLogger can record every generation
+
+  selection:
+    type: "tournament"
+    tournament_size: 3
+
+  mutation:
+    type: "gaussian"
+    sigma: 0.1
+
+  crossover:
+    type: "single_point"
+
+problem:
+  name: "Rastrigin"
+  lower_bound: -5.12
+  upper_bound: 5.12
+
+output:
+  file:
+    enabled: true
+    path: "logs/cuda_evolution.csv"
+    interval: 1
+  console:
+    enabled: false

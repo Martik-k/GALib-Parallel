@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 project(GALib-Parallel VERSION 1.0 LANGUAGES CXX)
 
@@ -96,6 +96,16 @@ if (GALIB_BUILD_EXAMPLES)
         endif ()
     endif ()
 
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/standard_ga_cuda_example.cpp")
+        add_executable(standard_ga_cuda_example examples/standard_ga_cuda_example.cpp)
+        target_link_libraries(standard_ga_cuda_example PRIVATE ga_lib)
+
+        if (TARGET ga_cuda)
+            target_link_libraries(standard_ga_cuda_example PRIVATE ga_cuda)
+            target_compile_definitions(standard_ga_cuda_example PRIVATE GALIB_WITH_CUDA=1)
+        endif ()
+    endif ()
+
     if (MPI_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/island_ga_example.cpp")
         add_executable(island_example examples/island_ga_example.cpp)
         target_link_libraries(island_example PRIVATE ga_island)
@@ -118,6 +128,11 @@ if (GALIB_BUILD_EXAMPLES)
             target_link_libraries(test_ga_cuda PRIVATE ga_cuda)
             target_compile_definitions(test_ga_cuda PRIVATE GALIB_WITH_CUDA=1)
         endif ()
+    endif ()
+
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/examples/minimal_user_example.cpp")
+        add_executable(minimal_example examples/minimal_user_example.cpp)
+        target_link_libraries(minimal_example PRIVATE ga_lib)
     endif ()
 
     if (GALIB_BUILD_PYTHON_TOOLS)
@@ -204,6 +219,7 @@ install(FILES
 )
 
 enable_testing()
+add_subdirectory(tests)
 
 find_package(Doxygen QUIET)
 if (DOXYGEN_FOUND)

@@ -11,6 +11,14 @@
 
 namespace galib::benchmark {
 
+    /**
+     * @brief Implementation of Himmelblau's function.
+     * 
+     * A multi-modal 2D function with 4 identical local minima.
+     * Global minima: f(3.0, 2.0) = 0, f(-2.805, 3.131) = 0, f(-3.779, -3.283) = 0, f(3.584, -1.848) = 0.
+     * 
+     * @tparam GeneType The numeric type of the genes.
+     */
     template <typename GeneType = double>
     class HimmelblauFitness : public FitnessFunction<GeneType> {
     private:
@@ -21,6 +29,12 @@ namespace galib::benchmark {
     public:
         HimmelblauFitness() = default;
 
+        /**
+         * @brief Evaluates the 2D Himmelblau function.
+         * @param phenotype Must have exactly 2 elements.
+         * @return Fitness value.
+         * @throws std::invalid_argument if phenotype size != 2.
+         */
         double evaluate(const std::vector<GeneType>& phenotype) const override {
             if (phenotype.size() != DIMENSIONS_M) {
                 throw std::invalid_argument(

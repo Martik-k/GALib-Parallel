@@ -66,7 +66,7 @@ namespace galib::internal {
         static std::unique_ptr<LocalSelection<GeneType>> buildLocalSelection(const YAML::Node& node) {
             const auto type = node["type"].as<std::string>("best_neighbor");
 
-            if (type == "best_neighbor") {
+            if (type == "best_neighbor" || type == "tournament") {
                 return std::make_unique<BestNeighborSelection<GeneType>>();
             }
 
