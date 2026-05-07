@@ -137,6 +137,70 @@ namespace galib::utils {
             return algo;
         }
 
+#ifdef GALIB_HAS_MPI
+        static std::unique_ptr<Algorithm<GeneType>> build(
+            const YAML::Node& config,
+            FitnessFunction<GeneType>& ff,
+            std::size_t threads = 0,
+            MPI_Comm mpi_comm = MPI_COMM_WORLD
+        ) {
+#else
+        static std::unique_ptr<Algorithm<GeneType>> build(
+            const YAML::Node& config,
+            FitnessFunction<GeneType>& ff,
+            std::size_t threads = 0
+        ) {
+#endif
+            const auto node = config["algorithm"];
+            if (!node) {
+                throw std::invalid_argument("Missing 'algorithm' section in config");
+            }
+
+            const auto type = node["type"].as<std::string>("standard");
+            std::unique_ptr<Algorithm<GeneType>> algo;
+
+            // Set threads in config if provided
+            if (threads > 0) {
+                const_cast<YAML::Node&>(config)["algorithm"]["threads"] = threads;
+            }
+
+            if (type == "standard") {
+                algo = buildStandardGA(config, ff);
+            } else if (type == "cellular") {
+                algo = buildCellularGA(config, ff);
+            } else if (type == "differential_evolution") {
+                algo = buildDifferentialEvolutionGA(config, ff);
+            } else if (type == "island") {
+#ifdef GALIB_HAS_MPI
+                algo = buildIslandGA(config, ff, mpi_comm);
+#else
+                throw std::runtime_error("Island GA requested but library was built without MPI support.");
+#endif
+            } else {
+                throw std::invalid_argument("Unknown algorithm type: " + type);
+            }
+
+            // Setup Logging
+            if (config["output"]) {
+                const auto out = config["output"];
+
+                // Console Logging
+                if (out["console"] && out["console"]["enabled"].as<bool>(false)) {
+                    auto interval = out["console"]["interval"].as<std::size_t>(1);
+                    algo->enableConsoleLogging(interval);
+                }
+
+                // File Logging
+                if (out["file"] && out["file"]["enabled"].as<bool>(false)) {
+                    auto path = out["file"]["path"].as<std::string>("evolution.csv");
+                    auto interval = out["file"]["interval"].as<std::size_t>(1);
+                    algo->enableFileLogging(path, interval);
+                }
+            }
+
+            return algo;
+        }
+
         /**
          * @brief Builds a StandardGA instance from the root configuration.
          */

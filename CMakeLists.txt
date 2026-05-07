@@ -93,6 +93,16 @@ if (GALIB_BUILD_EXAMPLES)
         target_link_libraries(de_example PRIVATE ga_lib)
     endif ()
 
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/benchmark_runner.cpp")
+        add_executable(benchmark_runner benchmarks/benchmark_runner.cpp)
+        target_link_libraries(benchmark_runner PRIVATE ga_lib)
+
+        if (TARGET ga_cuda)
+            target_link_libraries(benchmark_runner PRIVATE ga_cuda)
+            target_compile_definitions(benchmark_runner PRIVATE GALIB_WITH_CUDA=1)
+        endif ()
+    endif ()
+
     if (GALIB_BUILD_PYTHON_TOOLS)
         find_package(Python3 COMPONENTS Interpreter)
 
