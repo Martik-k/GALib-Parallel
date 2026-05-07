@@ -3,12 +3,12 @@
 
 algorithm:
   # Common Parameters
-  type: "standard"   # Options: "standard", "cellular", "island", "differential_evolution"
+  type: "standard"
   max_generations: 200
   mutation_rate: 0.1
-  crossover_rate: 0.9        # Used as CR_rate in Differential Evolution
+  crossover_rate: 0.9
   use_elitism: true
-  threads: 0                 # Number of threads for the parallelization
+  threads: 0
 
   # Standard GA Specific Parameters
   standard:
@@ -16,7 +16,7 @@ algorithm:
 
   # Differential Evolution Specific Parameters
   differential_evolution:
-    f_weight: 0.8            # Differential weight [0, 2]
+    f_weight: 0.8
 
   # Cellular GA Specific Parameters
   cellular:
@@ -26,29 +26,29 @@ algorithm:
 
   # Island Model Specific Parameters
   island:
-    topology: "fully_connected" # Options: "fully_connected", "one_way_ring", "bidirectional_ring"
+    topology: "fully_connected"
     migration_interval: 10
     migration_size: 10
     immigration_quota: 0.1
     buffer_capacity: 50
-    
+
     # Migration Strategies
     replacer:
-      type: "worst"          # Options: "worst"
+      type: "worst"
     selector:
-      type: "elitism"        # Options: "elitism"
+      type: "elitism"
 
   # Genetic Operator Configuration
   selection:
-    type: "tournament"       # Options: "tournament", "best_neighbor" (for cellular)
+    type: "tournament"
     tournament_size: 3
-  
+
   mutation:
-    type: "gaussian"         # Options: "gaussian", "uniform", "boundary"
-    sigma: 0.1               # Only for gaussian
-    
+    type: "gaussian"
+    sigma: 0.1
+
   crossover:
-    type: "single_point"     # Options: "single_point", "arithmetic", "uniform"
+    type: "single_point"
 
 
 output:

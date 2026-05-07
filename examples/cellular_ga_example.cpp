@@ -10,7 +10,7 @@ using namespace galib;
 
 int main(int argc, char* argv[]) {
     try {
-        std::string config_path = (argc > 1) ? argv[1] : "configs/full_config_example.yaml";
+        std::string config_path = (argc > 1) ? argv[1] : "configs/config_example.yaml";
 
         constexpr std::size_t num_genes = 10;
         constexpr std::size_t population_size = 10000;
@@ -24,8 +24,6 @@ int main(int argc, char* argv[]) {
         std::cout << "Starting Cellular GA..." << std::endl;
         std::cout << "Configuration: " << config_path << std::endl;
         std::cout << "Population size: " << population_size << std::endl;
-
-      
 
         cellular_ga->run(population);
 

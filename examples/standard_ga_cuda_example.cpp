@@ -11,7 +11,7 @@ using namespace galib;
 
 int main(int argc, char* argv[]) {
     try {
-        std::string config_path = (argc > 1) ? argv[1] : "configs/full_config_example.yaml";
+        std::string config_path = (argc > 1) ? argv[1] : "configs/config_example.yaml";
 
         YAML::Node full_cfg = YAML::LoadFile(config_path);
         const auto alg_cfg  = full_cfg["algorithm"];
